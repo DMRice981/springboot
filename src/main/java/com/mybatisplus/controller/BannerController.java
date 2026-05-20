@@ -9,9 +9,11 @@ import java.util.List;
 @RestController
 @RequestMapping("/banner")
 public class BannerController {
+    private final BannerService bannerService;
 
-    @Autowired
-    private BannerService bannerService;
+    public BannerController(BannerService bannerService) {
+        this.bannerService = bannerService;
+    }
 
     @GetMapping("/list")
     public List<Banner> list(){
