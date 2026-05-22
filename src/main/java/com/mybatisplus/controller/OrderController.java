@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/order")   // 加上 /api 前缀
+@RequestMapping("/order")
 public class OrderController {
 
     @Autowired
