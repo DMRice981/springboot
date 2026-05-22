@@ -7,7 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
 @Data
 @AllArgsConstructor
@@ -22,5 +22,5 @@ public class AfterSale {
     private Integer goodsId;
     private String reason;
     private Integer status; // 0待处理 1已处理
-    private Date createTime;
+    private LocalDateTime createTime;
 }

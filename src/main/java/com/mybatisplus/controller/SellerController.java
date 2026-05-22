@@ -4,7 +4,7 @@ import com.mybatisplus.entity.Seller;
 import com.mybatisplus.service.SellerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-import java.util.Date;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,7 +28,7 @@ public class SellerController {
             return res;
         }
 
-        seller.setCreateTime(new Date());
+        seller.setCreateTime(LocalDateTime.now());
         sellerService.save(seller);
 
         res.put("code", 200);

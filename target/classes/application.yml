@@ -1,23 +1,23 @@
 server:
-  port: 8081 # ??????
+  port: ${SERVER_PORT:8081}
 
 spring:
   application:
     name: springboot
-  # ???????
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/shop_mall?useUnicode=true&characterEncoding=utf8&serverTimezone=GMT%2B8&useSSL=false
-    username: root
-    password: ywr988
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:shop_mall}?useUnicode=${DB_USE_UNICODE:true}&characterEncoding=${DB_CHARACTER_ENCODING:utf8}&serverTimezone=${DB_SERVER_TIMEZONE:GMT%2B8}&useSSL=${DB_USE_SSL:false}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
 
 # MyBatis-Plus
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.mybatisplus.entity
   configuration:
-    map-underscore-to-camel-case: true # ????????
+    map-underscore-to-camel-case: true
   global-config:
     db-config:
-      id-type: auto # ??????
+      id-type: auto
+
 

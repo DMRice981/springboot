@@ -54,21 +54,36 @@ public class GoodsController {
     // ==================== 新增接口（供前端商品管理调用） ====================
 
     /**
-     * 1. 获取所有未删除的商品列表
+     * 1. 获取所有未删除且已上架的商品列表（用户端）
      * 前端期望直接返回数组
      */
     @GetMapping("/list")
     public List<Goods> list() {
         return goodsService.lambdaQuery()
                 .eq(Goods::getIsDelete, 0)   // 只查未删除的
+                .eq(Goods::getStatus, 1)     // 只查已上架的
                 .orderByDesc(Goods::getCreateTime)
                 .list();
     }
 
     /**
+     * 获取所有未删除的商品列表（包含下架商品，管理端）
+     */
+    @GetMapping("/list/all")
+    public List<Goods> listAll(@RequestParam(required = false) Integer sellerId) {
+        LambdaQueryWrapper<Goods> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Goods::getIsDelete, 0);
+        if (sellerId != null) {
+            wrapper.eq(Goods::getSellerId, sellerId);
+        }
+        wrapper.orderByDesc(Goods::getCreateTime);
+        return goodsService.list(wrapper);
+    }
+
+    /**
      * 2. 新增商品
-     * 前端只传 { goodsName, price, stock, categoryId }
-     * 后端设置默认值（图片、市场价、销量、描述、状态、sellerId等）
+     * 前端传 { goodsName, price, stock, categoryId, sellerId, goodsImg, goodsDesc }
+     * 后端设置默认值（图片、市场价、销量、描述、状态等）
      */
     @PostMapping("/add")
     public Map<String, Object> add(@RequestBody Goods goodsFromFront) {
@@ -79,17 +94,17 @@ public class GoodsController {
             goods.setPrice(goodsFromFront.getPrice());
             goods.setStock(goodsFromFront.getStock());
             goods.setCategoryId(goodsFromFront.getCategoryId());
+            goods.setSellerId(goodsFromFront.getSellerId());  // 从前端传入
+            goods.setGoodsImg(goodsFromFront.getGoodsImg());  // 从前端传入
+            goods.setGoodsDesc(goodsFromFront.getGoodsDesc()); // 从前端传入
 
-            // 设置默认值（根据业务需求调整）
-            goods.setGoodsImg("");                       // 默认空图片
+            // 设置默认值
             goods.setMarketPrice(BigDecimal.ZERO);       // 市场价默认为0
             goods.setSales(0);                           // 初始销量0
-            goods.setGoodsDesc("");                      // 商品描述为空
             goods.setStatus(1);                          // 1-上架
             goods.setIsDelete(0);
             goods.setCreateTime(LocalDateTime.now());
             goods.setUpdateTime(LocalDateTime.now());
-            goods.setSellerId(1);   // ⚠️ 正式环境应从登录用户获取（如 JWT 中的 userId）
 
             goodsService.save(goods);
             res.put("code", 200);
@@ -103,8 +118,7 @@ public class GoodsController {
 
     /**
      * 3. 更新商品
-     * 前端传 { id, goodsName, price, stock, categoryId }
-     * 只更新这4个字段，其他字段保持不变
+     * 前端传 { id, goodsName, price, stock, categoryId, goodsImg, goodsDesc }
      */
     @PutMapping("/update")
     public Map<String, Object> update(@RequestBody Goods goodsFromFront) {
@@ -121,6 +135,8 @@ public class GoodsController {
                 .set(Goods::getPrice, goodsFromFront.getPrice())
                 .set(Goods::getStock, goodsFromFront.getStock())
                 .set(Goods::getCategoryId, goodsFromFront.getCategoryId())
+                .set(Goods::getGoodsImg, goodsFromFront.getGoodsImg())
+                .set(Goods::getGoodsDesc, goodsFromFront.getGoodsDesc())
                 .set(Goods::getUpdateTime, LocalDateTime.now());
 
         boolean success = goodsService.update(updateWrapper);
