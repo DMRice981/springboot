@@ -1,16 +1,16 @@
 package com.mybatisplus.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.mybatisplus.dto.AfterSaleDTO;
 import com.mybatisplus.entity.AfterSale;
 import com.mybatisplus.entity.Goods;
-import com.mybatisplus.entity.Order;
 import com.mybatisplus.service.AfterSaleService;
 import com.mybatisplus.service.GoodsService;
-import com.mybatisplus.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +21,6 @@ import java.util.Map;
 public class AfterSaleController {
 
     private final AfterSaleService afterSaleService;
-    private final OrderService orderService;
     private final GoodsService goodsService;
 
     /**
@@ -31,22 +30,35 @@ public class AfterSaleController {
     public Map<String, Object> add(@RequestBody AfterSale afterSale) {
         Map<String, Object> res = new HashMap<>();
         try {
+            // 校验必填字段
+            if (afterSale.getUserId() == null) {
+                res.put("code", 400);
+                res.put("msg", "用户ID不能为空");
+                return res;
+            }
+            if (afterSale.getOrderId() == null) {
+                res.put("code", 400);
+                res.put("msg", "订单ID不能为空");
+                return res;
+            }
+            if (afterSale.getGoodsId() == null) {
+                res.put("code", 400);
+                res.put("msg", "商品ID不能为空");
+                return res;
+            }
+            if (afterSale.getReason() == null || afterSale.getReason().trim().isEmpty()) {
+                res.put("code", 400);
+                res.put("msg", "售后原因不能为空");
+                return res;
+            }
+            
             afterSale.setStatus(0);
             afterSale.setCreateTime(LocalDateTime.now());
             
-            // 获取订单信息，设置sellerId
-            if (afterSale.getOrderId() != null) {
-                Order order = orderService.getById(afterSale.getOrderId());
-                if (order != null) {
-                    // 通过订单商品获取sellerId
-                    // 这里简化处理，实际应从订单项获取
-                    if (afterSale.getGoodsId() != null) {
-                        Goods goods = goodsService.getById(afterSale.getGoodsId());
-                        if (goods != null) {
-                            afterSale.setSellerId(goods.getSellerId());
-                        }
-                    }
-                }
+            // 通过商品获取sellerId
+            Goods goods = goodsService.getById(afterSale.getGoodsId());
+            if (goods != null) {
+                afterSale.setSellerId(goods.getSellerId());
             }
             
             afterSaleService.save(afterSale);
@@ -60,7 +72,7 @@ public class AfterSaleController {
     }
 
     /**
-     * 获取用户的售后列表
+     * 获取用户的售后列表（包含商品信息）
      */
     @GetMapping("/list")
     public Map<String, Object> list(@RequestParam(required = false) Integer userId,
@@ -77,8 +89,23 @@ public class AfterSaleController {
         
         wrapper.orderByDesc(AfterSale::getCreateTime);
         List<AfterSale> list = afterSaleService.list(wrapper);
+        
+        // 组装DTO，包含商品信息
+        List<AfterSaleDTO> dtoList = new ArrayList<>();
+        for (AfterSale afterSale : list) {
+            AfterSaleDTO dto = new AfterSaleDTO();
+            dto.setAfterSale(afterSale);
+            
+            if (afterSale.getGoodsId() != null) {
+                Goods goods = goodsService.getById(afterSale.getGoodsId());
+                dto.setGoods(goods);
+            }
+            
+            dtoList.add(dto);
+        }
+        
         res.put("code", 200);
-        res.put("data", list);
+        res.put("data", dtoList);
         return res;
     }
 

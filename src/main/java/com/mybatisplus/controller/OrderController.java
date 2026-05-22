@@ -1,10 +1,15 @@
 package com.mybatisplus.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.mybatisplus.dto.OrderDTO;
 import com.mybatisplus.entity.Order;
+import com.mybatisplus.entity.OrderItem;
+import com.mybatisplus.service.OrderItemService;
 import com.mybatisplus.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,11 +20,22 @@ import java.util.Map;
 public class OrderController {
 
     private final OrderService orderService;
+    private final OrderItemService orderItemService;
 
     @GetMapping("/list")
-    public List<Order> list(){
-        // 如果以后要逻辑删除，可加 .eq(Order::getIsDelete, 0)
-        return orderService.list();
+    public List<OrderDTO> list(){
+        List<Order> orders = orderService.list();
+        List<OrderDTO> orderDTOList = new ArrayList<>();
+        
+        for (Order order : orders) {
+            LambdaQueryWrapper<OrderItem> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(OrderItem::getOrderNo, order.getOrderNo());
+            List<OrderItem> orderItems = orderItemService.list(wrapper);
+            
+            orderDTOList.add(new OrderDTO(order, orderItems));
+        }
+        
+        return orderDTOList;
     }
 
     @GetMapping("/get/{id}")
