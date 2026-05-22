@@ -2,16 +2,16 @@ package com.mybatisplus.controller;
 
 import com.mybatisplus.entity.User;
 import com.mybatisplus.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
 @RequestMapping("/user")
+@RequiredArgsConstructor
 public class UserController {
 
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
 
     @GetMapping("/list")
     public List<User> list(){

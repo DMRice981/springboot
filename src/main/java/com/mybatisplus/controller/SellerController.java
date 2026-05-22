@@ -2,18 +2,18 @@ package com.mybatisplus.controller;
 
 import com.mybatisplus.entity.Seller;
 import com.mybatisplus.service.SellerService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.beans.factory.annotation.Autowired;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/seller")
+@RequiredArgsConstructor
 public class SellerController {
 
-    @Autowired
-    private SellerService sellerService;
+    private final SellerService sellerService;
 
     @PostMapping("/register")
     public Map<String, Object> register(@RequestBody Seller seller) {

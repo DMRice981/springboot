@@ -10,9 +10,9 @@ import lombok.NoArgsConstructor;
 import java.util.Date;
 
 @Data
-@TableName("seller")
 @AllArgsConstructor
 @NoArgsConstructor
+@TableName("seller")
 public class Seller {
     @TableId(type = IdType.AUTO)
     private Integer id;

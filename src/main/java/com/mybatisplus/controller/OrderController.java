@@ -2,7 +2,7 @@ package com.mybatisplus.controller;
 
 import com.mybatisplus.entity.Order;
 import com.mybatisplus.service.OrderService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -11,10 +11,10 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/order")
+@RequiredArgsConstructor
 public class OrderController {
 
-    @Autowired
-    private OrderService orderService;
+    private final OrderService orderService;
 
     @GetMapping("/list")
     public List<Order> list(){

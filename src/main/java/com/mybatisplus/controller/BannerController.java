@@ -2,18 +2,15 @@ package com.mybatisplus.controller;
 
 import com.mybatisplus.entity.Banner;
 import com.mybatisplus.service.BannerService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
 @RequestMapping("/banner")
+@RequiredArgsConstructor
 public class BannerController {
     private final BannerService bannerService;
-
-    public BannerController(BannerService bannerService) {
-        this.bannerService = bannerService;
-    }
 
     @GetMapping("/list")
     public List<Banner> list(){

@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.mybatisplus.entity.Goods;
 import com.mybatisplus.service.GoodsService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -15,10 +15,10 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/goods")
+@RequiredArgsConstructor
 public class GoodsController {
 
-    @Autowired
-    private GoodsService goodsService;
+    private final GoodsService goodsService;
 
     /**
      * 原有接口：根据卖家ID查询商品（只查未删除的）

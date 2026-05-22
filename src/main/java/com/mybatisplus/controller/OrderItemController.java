@@ -2,16 +2,16 @@ package com.mybatisplus.controller;
 
 import com.mybatisplus.entity.OrderItem;
 import com.mybatisplus.service.OrderItemService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
 @RequestMapping("/orderItem")
+@RequiredArgsConstructor
 public class OrderItemController {
 
-    @Autowired
-    private OrderItemService orderItemService;
+    private final OrderItemService orderItemService;
 
     @GetMapping("/list")
     public List<OrderItem> list(){

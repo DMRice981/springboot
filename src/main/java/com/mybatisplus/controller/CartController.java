@@ -2,16 +2,16 @@ package com.mybatisplus.controller;
 
 import com.mybatisplus.entity.Cart;
 import com.mybatisplus.service.CartService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
 @RequestMapping("/cart")
+@RequiredArgsConstructor
 public class CartController {
 
-    @Autowired
-    private CartService cartService;
+    private final CartService cartService;
 
     @GetMapping("/list")
     public List<Cart> list(){

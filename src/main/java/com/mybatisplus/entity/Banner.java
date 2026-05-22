@@ -10,9 +10,9 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("banner")
 @AllArgsConstructor
 @NoArgsConstructor
+@TableName("banner")
 public class Banner {
     @TableId(type = IdType.AUTO)
     private Integer id;

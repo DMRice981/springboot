@@ -2,19 +2,17 @@ package com.mybatisplus.controller;
 
 import com.mybatisplus.entity.Admin;
 import com.mybatisplus.service.AdminService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/admin")
+@RequiredArgsConstructor
 public class AdminController {
 
     private final AdminService adminService;
-
-    public AdminController(AdminService adminService) {
-        this.adminService = adminService;
-    }
 
     @GetMapping("/list")
     public List<Admin> list() {

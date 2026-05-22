@@ -1,6 +1,5 @@
 package com.mybatisplus.entity;
 
-
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -11,9 +10,9 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("admin")
 @AllArgsConstructor
 @NoArgsConstructor
+@TableName("admin")
 public class Admin {
     @TableId(type = IdType.AUTO)
     private Integer id;

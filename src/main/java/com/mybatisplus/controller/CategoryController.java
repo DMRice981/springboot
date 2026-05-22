@@ -2,16 +2,16 @@ package com.mybatisplus.controller;
 
 import com.mybatisplus.entity.Category;
 import com.mybatisplus.service.CategoryService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
 @RequestMapping("/category")
+@RequiredArgsConstructor
 public class CategoryController {
 
-    @Autowired
-    private CategoryService categoryService;
+    private final CategoryService categoryService;
 
     @GetMapping("/list")
     public List<Category> list(){
