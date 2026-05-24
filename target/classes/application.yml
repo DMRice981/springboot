@@ -9,7 +9,7 @@ spring:
     name: springboot
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:shop_mall}?useUnicode=${DB_USE_UNICODE:true}&characterEncoding=${DB_CHARACTER_ENCODING:utf8}&serverTimezone=${DB_SERVER_TIMEZONE:GMT%2B8}&useSSL=${DB_USE_SSL:false}
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:shop_mall}?useUnicode=${DB_USE_UNICODE:true}&characterEncoding=${DB_CHARACTER_ENCODING:utf8}&serverTimezone=${DB_SERVER_TIMEZONE:GMT%2B8}&useSSL=${DB_USE_SSL:false}&allowPublicKeyRetrieval=true
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:}
 
