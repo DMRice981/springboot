@@ -162,4 +162,13 @@ public class GoodsController {
         }
         return res;
     }
+
+    /**
+     * 5. 获取单个商品详情
+     * 前端调用 GET /api/goods/get/{id}
+     */
+    @GetMapping("/get/{id}")
+    public Goods get(@PathVariable Integer id) {
+        return goodsService.getById(id);
+    }
 }
