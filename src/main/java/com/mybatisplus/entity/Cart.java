@@ -19,6 +19,7 @@ public class Cart {
     private Integer userId;
     private Integer goodsId;
     private Integer num;
+    private Integer isDelete;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

@@ -1,6 +1,7 @@
 package com.mybatisplus.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
@@ -20,10 +21,15 @@ public class Order {
     private String orderNo;
     private Integer userId;
     private Integer addressId;
+    @TableField("total_price")
     private BigDecimal totalPrice;
+    @TableField("pay_price")
     private BigDecimal payPrice;
+    @TableField("pay_status")
     private Integer payStatus;
+    @TableField("order_status")
     private Integer orderStatus;
+    private Integer isDelete;
     private LocalDateTime payTime;
     private LocalDateTime sendTime;
     private LocalDateTime confirmTime;

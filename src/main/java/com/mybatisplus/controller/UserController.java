@@ -17,9 +17,6 @@ public class UserController {
 
     private final UserService userService;
 
-    /**
-     * 用户登录
-     */
     @PostMapping("/login")
     public Result<User> login(@RequestBody User loginUser) {
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
@@ -35,9 +32,6 @@ public class UserController {
         return Result.success("登录成功", user);
     }
 
-    /**
-     * 用户注册
-     */
     @PostMapping("/register")
     public Result<User> register(@RequestBody User user) {
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
@@ -53,9 +47,6 @@ public class UserController {
         return Result.success("注册成功", user);
     }
 
-    /**
-     * 获取所有用户列表
-     */
     @GetMapping("/list")
     public Result<List<User>> list() {
         List<User> list = userService.lambdaQuery()
@@ -65,9 +56,6 @@ public class UserController {
         return Result.success(list);
     }
 
-    /**
-     * 获取单个用户信息
-     */
     @GetMapping("/get/{id}")
     public Result<User> get(@PathVariable Integer id) {
         User user = userService.getById(id);
@@ -77,9 +65,6 @@ public class UserController {
         return Result.success(user);
     }
 
-    /**
-     * 更新用户信息
-     */
     @PutMapping("/update")
     public Result<User> update(@RequestBody User user) {
         user.setUpdateTime(LocalDateTime.now());
@@ -87,9 +72,6 @@ public class UserController {
         return Result.success("更新成功", user);
     }
 
-    /**
-     * 删除用户（逻辑删除）
-     */
     @DeleteMapping("/delete/{id}")
     public Result<Void> delete(@PathVariable Integer id) {
         userService.lambdaUpdate()
@@ -97,12 +79,9 @@ public class UserController {
                 .set(User::getIsDelete, 1)
                 .set(User::getUpdateTime, LocalDateTime.now())
                 .update();
-        return Result.success("删除成功");
+        return Result.success();
     }
 
-    /**
-     * 更新用户状态
-     */
     @PostMapping("/status")
     public Result<Void> updateStatus(@RequestParam Integer id, @RequestParam Integer status) {
         userService.lambdaUpdate()

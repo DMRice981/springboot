@@ -1,6 +1,7 @@
 package com.mybatisplus.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
@@ -17,11 +18,13 @@ import java.time.LocalDateTime;
 public class OrderItem {
     @TableId(type = IdType.AUTO)
     private Integer id;
-    private String orderNo;
+    private Integer orderId;
     private Integer goodsId;
     private String goodsName;
     private String goodsImg;
     private BigDecimal price;
     private Integer num;
+    @TableField("total_price")
+    private BigDecimal totalPrice;
     private LocalDateTime createTime;
 }

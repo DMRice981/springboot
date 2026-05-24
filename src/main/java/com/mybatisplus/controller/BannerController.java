@@ -1,39 +1,57 @@
 package com.mybatisplus.controller;
 
+import com.mybatisplus.common.Result;
 import com.mybatisplus.entity.Banner;
 import com.mybatisplus.service.BannerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
 @RequestMapping("/banner")
 @RequiredArgsConstructor
 public class BannerController {
+
     private final BannerService bannerService;
 
     @GetMapping("/list")
-    public List<Banner> list(){
-        return bannerService.list();
+    public Result<List<Banner>> list() {
+        return Result.success(bannerService.lambdaQuery()
+                .eq(Banner::getStatus, 1)
+                .orderByAsc(Banner::getSort)
+                .list());
     }
 
     @GetMapping("/get/{id}")
-    public Banner get(@PathVariable Integer id){
-        return bannerService.getById(id);
+    public Result<Banner> get(@PathVariable Integer id) {
+        Banner banner = bannerService.getById(id);
+        if (banner == null) {
+            return Result.error("轮播图不存在");
+        }
+        return Result.success(banner);
+    }
+
+    @GetMapping("/listAll")
+    public Result<List<Banner>> listAll() {
+        return Result.success(bannerService.list());
     }
 
     @PostMapping("/add")
-    public boolean add(@RequestBody Banner banner){
-        return bannerService.save(banner);
+    public Result<Banner> add(@RequestBody Banner banner) {
+        bannerService.save(banner);
+        return Result.success("添加成功", banner);
     }
 
     @PutMapping("/update")
-    public boolean update(@RequestBody Banner banner){
-        return bannerService.updateById(banner);
+    public Result<Banner> update(@RequestBody Banner banner) {
+        bannerService.updateById(banner);
+        return Result.success("更新成功", banner);
     }
 
     @DeleteMapping("/delete/{id}")
-    public boolean delete(@PathVariable Integer id){
-        return bannerService.removeById(id);
+    public Result<Void> delete(@PathVariable Integer id) {
+        bannerService.removeById(id);
+        return Result.success();
     }
 }

@@ -18,9 +18,6 @@ public class GoodsController {
 
     private final GoodsService goodsService;
 
-    /**
-     * 获取所有上架商品（用户端）
-     */
     @GetMapping("/list")
     public Result<List<Goods>> list(@RequestParam(required = false) Integer categoryId,
                                      @RequestParam(required = false) String keyword) {
@@ -44,9 +41,6 @@ public class GoodsController {
         return Result.success(goodsService.list(wrapper));
     }
 
-    /**
-     * 获取所有商品（管理端）
-     */
     @GetMapping("/list/all")
     public Result<List<Goods>> listAll(@RequestParam(required = false) Integer sellerId,
                                         @RequestParam(required = false) Integer status) {
@@ -65,9 +59,6 @@ public class GoodsController {
         return Result.success(goodsService.list(wrapper));
     }
 
-    /**
-     * 获取单个商品详情
-     */
     @GetMapping("/get/{id}")
     public Result<Goods> get(@PathVariable Integer id) {
         Goods goods = goodsService.getById(id);
@@ -77,9 +68,6 @@ public class GoodsController {
         return Result.success(goods);
     }
 
-    /**
-     * 获取商家商品
-     */
     @GetMapping("/my")
     public Result<List<Goods>> myGoods(@RequestParam Integer sellerId) {
         List<Goods> list = goodsService.lambdaQuery()
@@ -90,9 +78,6 @@ public class GoodsController {
         return Result.success(list);
     }
 
-    /**
-     * 添加商品
-     */
     @PostMapping("/add")
     public Result<Goods> add(@RequestBody Goods goodsFromFront) {
         Goods goods = new Goods();
@@ -115,9 +100,6 @@ public class GoodsController {
         return Result.success("添加成功", goods);
     }
 
-    /**
-     * 更新商品
-     */
     @PutMapping("/update")
     public Result<Goods> update(@RequestBody Goods goodsFromFront) {
         if (goodsFromFront.getId() == null) {
@@ -142,9 +124,6 @@ public class GoodsController {
         return Result.success("更新成功", goods);
     }
 
-    /**
-     * 更新商品状态（上架/下架）
-     */
     @PostMapping("/status")
     public Result<Void> updateStatus(@RequestParam Integer id, @RequestParam Integer status) {
         goodsService.lambdaUpdate()
@@ -155,9 +134,6 @@ public class GoodsController {
         return Result.success();
     }
 
-    /**
-     * 删除商品（逻辑删除）
-     */
     @DeleteMapping("/delete/{id}")
     public Result<Void> delete(@PathVariable Integer id) {
         goodsService.lambdaUpdate()
@@ -165,12 +141,9 @@ public class GoodsController {
                 .set(Goods::getIsDelete, 1)
                 .set(Goods::getUpdateTime, LocalDateTime.now())
                 .update();
-        return Result.success("删除成功");
+        return Result.success();
     }
 
-    /**
-     * 搜索商品
-     */
     @GetMapping("/search")
     public Result<List<Goods>> search(@RequestParam String keyword) {
         List<Goods> list = goodsService.lambdaQuery()

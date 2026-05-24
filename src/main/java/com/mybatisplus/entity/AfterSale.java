@@ -21,6 +21,6 @@ public class AfterSale {
     private Integer sellerId;
     private Integer goodsId;
     private String reason;
-    private Integer status; // 0待处理 1已处理
+    private Integer status;
     private LocalDateTime createTime;
 }
