@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,7 +19,7 @@ import java.time.LocalDateTime;
 public class OrderItem {
     @TableId(type = IdType.AUTO)
     private Integer id;
-    private Integer orderId;
+    private String orderNo;
     private Integer goodsId;
     private String goodsName;
     private String goodsImg;
@@ -26,5 +27,6 @@ public class OrderItem {
     private Integer num;
     @TableField("total_price")
     private BigDecimal totalPrice;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;
 }

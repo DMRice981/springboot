@@ -1,6 +1,7 @@
 package com.mybatisplus.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.mybatisplus.common.Constants;
 import com.mybatisplus.common.Result;
 import com.mybatisplus.entity.Goods;
 import com.mybatisplus.service.GoodsService;
@@ -22,8 +23,8 @@ public class GoodsController {
     public Result<List<Goods>> list(@RequestParam(required = false) Integer categoryId,
                                      @RequestParam(required = false) String keyword) {
         LambdaQueryWrapper<Goods> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Goods::getIsDelete, 0)
-               .eq(Goods::getStatus, 1);
+        wrapper.eq(Goods::getIsDelete, Constants.Status.NOT_DELETED)
+               .eq(Goods::getStatus, Constants.GoodsStatus.ON_SHELF);
         
         if (categoryId != null) {
             wrapper.eq(Goods::getCategoryId, categoryId);
@@ -45,7 +46,7 @@ public class GoodsController {
     public Result<List<Goods>> listAll(@RequestParam(required = false) Integer sellerId,
                                         @RequestParam(required = false) Integer status) {
         LambdaQueryWrapper<Goods> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Goods::getIsDelete, 0);
+        wrapper.eq(Goods::getIsDelete, Constants.Status.NOT_DELETED);
         
         if (sellerId != null) {
             wrapper.eq(Goods::getSellerId, sellerId);
@@ -62,7 +63,7 @@ public class GoodsController {
     @GetMapping("/get/{id}")
     public Result<Goods> get(@PathVariable Integer id) {
         Goods goods = goodsService.getById(id);
-        if (goods == null || goods.getIsDelete() == 1) {
+        if (goods == null || goods.getIsDelete().equals(Constants.Status.DELETED)) {
             return Result.error("商品不存在");
         }
         return Result.success(goods);
@@ -72,7 +73,7 @@ public class GoodsController {
     public Result<List<Goods>> myGoods(@RequestParam Integer sellerId) {
         List<Goods> list = goodsService.lambdaQuery()
                 .eq(Goods::getSellerId, sellerId)
-                .eq(Goods::getIsDelete, 0)
+                .eq(Goods::getIsDelete, Constants.Status.NOT_DELETED)
                 .orderByDesc(Goods::getCreateTime)
                 .list();
         return Result.success(list);
@@ -91,8 +92,8 @@ public class GoodsController {
         goods.setGoodsImg(goodsFromFront.getGoodsImg());
         goods.setGoodsDesc(goodsFromFront.getGoodsDesc());
         goods.setSellerId(goodsFromFront.getSellerId());
-        goods.setStatus(1);
-        goods.setIsDelete(0);
+        goods.setStatus(Constants.GoodsStatus.ON_SHELF);
+        goods.setIsDelete(Constants.Status.NOT_DELETED);
         goods.setCreateTime(LocalDateTime.now());
         goods.setUpdateTime(LocalDateTime.now());
         
@@ -138,7 +139,7 @@ public class GoodsController {
     public Result<Void> delete(@PathVariable Integer id) {
         goodsService.lambdaUpdate()
                 .eq(Goods::getId, id)
-                .set(Goods::getIsDelete, 1)
+                .set(Goods::getIsDelete, Constants.Status.DELETED)
                 .set(Goods::getUpdateTime, LocalDateTime.now())
                 .update();
         return Result.success();
@@ -147,8 +148,8 @@ public class GoodsController {
     @GetMapping("/search")
     public Result<List<Goods>> search(@RequestParam String keyword) {
         List<Goods> list = goodsService.lambdaQuery()
-                .eq(Goods::getIsDelete, 0)
-                .eq(Goods::getStatus, 1)
+                .eq(Goods::getIsDelete, Constants.Status.NOT_DELETED)
+                .eq(Goods::getStatus, Constants.GoodsStatus.ON_SHELF)
                 .and(w -> w.like(Goods::getGoodsName, keyword)
                           .or()
                           .like(Goods::getGoodsDesc, keyword))

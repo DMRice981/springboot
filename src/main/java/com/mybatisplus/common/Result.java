@@ -12,7 +12,10 @@ public class Result<T> {
     private T data;
 
     public static <T> Result<T> success() {
-        return success(null);
+        Result<T> result = new Result<>();
+        result.setCode(200);
+        result.setMsg("操作成功");
+        return result;
     }
 
     public static <T> Result<T> success(T data) {
@@ -28,6 +31,13 @@ public class Result<T> {
         result.setCode(200);
         result.setMsg(msg);
         result.setData(data);
+        return result;
+    }
+
+    public static <T> Result<T> successMsg(String msg) {
+        Result<T> result = new Result<>();
+        result.setCode(200);
+        result.setMsg(msg);
         return result;
     }
 

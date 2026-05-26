@@ -1,6 +1,7 @@
 package com.mybatisplus.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.mybatisplus.common.Result;
 import com.mybatisplus.dto.AfterSaleDTO;
 import com.mybatisplus.entity.AfterSale;
 import com.mybatisplus.entity.Goods;
@@ -11,9 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/after-sale")
@@ -23,61 +22,36 @@ public class AfterSaleController {
     private final AfterSaleService afterSaleService;
     private final GoodsService goodsService;
 
-    /**
-     * 创建售后申请
-     */
     @PostMapping("/add")
-    public Map<String, Object> add(@RequestBody AfterSale afterSale) {
-        Map<String, Object> res = new HashMap<>();
-        try {
-            // 校验必填字段
-            if (afterSale.getUserId() == null) {
-                res.put("code", 400);
-                res.put("msg", "用户ID不能为空");
-                return res;
-            }
-            if (afterSale.getOrderId() == null) {
-                res.put("code", 400);
-                res.put("msg", "订单ID不能为空");
-                return res;
-            }
-            if (afterSale.getGoodsId() == null) {
-                res.put("code", 400);
-                res.put("msg", "商品ID不能为空");
-                return res;
-            }
-            if (afterSale.getReason() == null || afterSale.getReason().trim().isEmpty()) {
-                res.put("code", 400);
-                res.put("msg", "售后原因不能为空");
-                return res;
-            }
-            
-            afterSale.setStatus(0);
-            afterSale.setCreateTime(LocalDateTime.now());
-            
-            // 通过商品获取sellerId
-            Goods goods = goodsService.getById(afterSale.getGoodsId());
-            if (goods != null) {
-                afterSale.setSellerId(goods.getSellerId());
-            }
-            
-            afterSaleService.save(afterSale);
-            res.put("code", 200);
-            res.put("msg", "申请成功");
-        } catch (Exception e) {
-            res.put("code", 500);
-            res.put("msg", "申请失败：" + e.getMessage());
+    public Result<AfterSale> add(@RequestBody AfterSale afterSale) {
+        if (afterSale.getUserId() == null) {
+            return Result.error("用户ID不能为空");
         }
-        return res;
+        if (afterSale.getOrderId() == null) {
+            return Result.error("订单ID不能为空");
+        }
+        if (afterSale.getGoodsId() == null) {
+            return Result.error("商品ID不能为空");
+        }
+        if (afterSale.getReason() == null || afterSale.getReason().trim().isEmpty()) {
+            return Result.error("售后原因不能为空");
+        }
+        
+        afterSale.setStatus(0);
+        afterSale.setCreateTime(LocalDateTime.now());
+        
+        Goods goods = goodsService.getById(afterSale.getGoodsId());
+        if (goods != null) {
+            afterSale.setSellerId(goods.getSellerId());
+        }
+        
+        afterSaleService.save(afterSale);
+        return Result.success("申请成功", afterSale);
     }
 
-    /**
-     * 获取用户的售后列表（包含商品信息）
-     */
     @GetMapping("/list")
-    public Map<String, Object> list(@RequestParam(required = false) Integer userId,
-                                    @RequestParam(required = false) Integer sellerId) {
-        Map<String, Object> res = new HashMap<>();
+    public Result<List<AfterSaleDTO>> list(@RequestParam(required = false) Integer userId,
+                                           @RequestParam(required = false) Integer sellerId) {
         LambdaQueryWrapper<AfterSale> wrapper = new LambdaQueryWrapper<>();
         
         if (userId != null) {
@@ -90,7 +64,6 @@ public class AfterSaleController {
         wrapper.orderByDesc(AfterSale::getCreateTime);
         List<AfterSale> list = afterSaleService.list(wrapper);
         
-        // 组装DTO，包含商品信息
         List<AfterSaleDTO> dtoList = new ArrayList<>();
         for (AfterSale afterSale : list) {
             AfterSaleDTO dto = new AfterSaleDTO();
@@ -104,47 +77,36 @@ public class AfterSaleController {
             dtoList.add(dto);
         }
         
-        res.put("code", 200);
-        res.put("data", dtoList);
-        return res;
+        return Result.success(dtoList);
     }
 
-    /**
-     * 处理售后（商家端）
-     */
     @PostMapping("/handle")
-    public Map<String, Object> handle(@RequestParam Integer id) {
-        Map<String, Object> res = new HashMap<>();
+    public Result<Void> handle(@RequestParam Integer id) {
         AfterSale afterSale = afterSaleService.getById(id);
         if (afterSale == null) {
-            res.put("code", 404);
-            res.put("msg", "售后不存在");
-            return res;
+            return Result.error("售后不存在");
         }
         
         afterSale.setStatus(1);
         afterSaleService.updateById(afterSale);
-        res.put("code", 200);
-        res.put("msg", "处理成功");
-        return res;
+        return Result.successMsg("处理成功");
     }
 
-    /**
-     * 获取售后详情
-     */
     @GetMapping("/get/{id}")
-    public AfterSale get(@PathVariable Integer id) {
-        return afterSaleService.getById(id);
+    public Result<AfterSale> get(@PathVariable Integer id) {
+        AfterSale afterSale = afterSaleService.getById(id);
+        if (afterSale == null) {
+            return Result.error("售后不存在");
+        }
+        return Result.success(afterSale);
     }
 
-    /**
-     * 删除售后
-     */
     @DeleteMapping("/delete/{id}")
-    public Map<String, Object> delete(@PathVariable Integer id) {
-        Map<String, Object> res = new HashMap<>();
+    public Result<Void> delete(@PathVariable Integer id) {
         boolean success = afterSaleService.removeById(id);
-        res.put("code", success ? 200 : 500);
-        return res;
+        if (!success) {
+            return Result.error("删除失败");
+        }
+        return Result.success();
     }
 }

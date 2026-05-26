@@ -1,6 +1,7 @@
 package com.mybatisplus.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.mybatisplus.common.Constants;
 import com.mybatisplus.common.Result;
 import com.mybatisplus.dto.OrderDTO;
 import com.mybatisplus.entity.Goods;
@@ -33,7 +34,6 @@ public class OrderController {
     public Result<List<Order>> list(@RequestParam Integer userId) {
         List<Order> list = orderService.lambdaQuery()
                 .eq(Order::getUserId, userId)
-                .eq(Order::getIsDelete, 0)
                 .orderByDesc(Order::getCreateTime)
                 .list();
         return Result.success(list);
@@ -43,7 +43,6 @@ public class OrderController {
     public Result<List<Order>> listAll(@RequestParam(required = false) Integer sellerId,
                                        @RequestParam(required = false) Integer status) {
         LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Order::getIsDelete, 0);
 
         if (status != null) {
             wrapper.eq(Order::getOrderStatus, status);
@@ -61,7 +60,7 @@ public class OrderController {
         }
 
         List<OrderItem> items = orderItemService.lambdaQuery()
-                .eq(OrderItem::getOrderId, id)
+                .eq(OrderItem::getOrderNo, order.getOrderNo())
                 .list();
 
         OrderDTO dto = new OrderDTO();
@@ -82,15 +81,15 @@ public class OrderController {
         }
 
         Order order = new Order();
-        order.setOrderNo("ORD" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        String orderNo = Constants.ORDER_PREFIX + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        order.setOrderNo(orderNo);
         order.setUserId(userId);
         order.setAddressId(addressId);
-        order.setOrderStatus(0);
-        order.setPayStatus(0);
+        order.setOrderStatus(Constants.OrderStatus.PENDING);
+        order.setPayStatus(Constants.PayStatus.UNPAID);
         order.setTotalPrice(BigDecimal.ZERO);
         order.setPayPrice(BigDecimal.ZERO);
         order.setCreateTime(LocalDateTime.now());
-        order.setIsDelete(0);
 
         orderService.save(order);
 
@@ -114,7 +113,7 @@ public class OrderController {
             }
 
             OrderItem item = new OrderItem();
-            item.setOrderId(order.getId());
+            item.setOrderNo(order.getOrderNo());
             item.setGoodsId(goodsId);
             item.setGoodsName(goods.getGoodsName());
             item.setGoodsImg(goods.getGoodsImg());
@@ -157,12 +156,12 @@ public class OrderController {
         if (order == null) {
             return Result.error("订单不存在");
         }
-        if (order.getPayStatus() == 1) {
+        if (order.getPayStatus().equals(Constants.PayStatus.PAID)) {
             return Result.error("订单已支付");
         }
 
-        order.setPayStatus(1);
-        order.setOrderStatus(1);
+        order.setPayStatus(Constants.PayStatus.PAID);
+        order.setOrderStatus(Constants.OrderStatus.SHIPPED);
         order.setPayTime(LocalDateTime.now());
         orderService.updateById(order);
 
@@ -175,11 +174,11 @@ public class OrderController {
         if (order == null) {
             return Result.error("订单不存在");
         }
-        if (order.getOrderStatus() != 1) {
+        if (!order.getOrderStatus().equals(Constants.OrderStatus.SHIPPED)) {
             return Result.error("订单状态不正确，需为待发货状态");
         }
 
-        order.setOrderStatus(2);
+        order.setOrderStatus(Constants.OrderStatus.DELIVERING);
         order.setSendTime(LocalDateTime.now());
         orderService.updateById(order);
 
@@ -192,11 +191,11 @@ public class OrderController {
         if (order == null) {
             return Result.error("订单不存在");
         }
-        if (order.getOrderStatus() != 2) {
+        if (!order.getOrderStatus().equals(Constants.OrderStatus.DELIVERING)) {
             return Result.error("订单状态不正确，需为已发货状态");
         }
 
-        order.setOrderStatus(3);
+        order.setOrderStatus(Constants.OrderStatus.COMPLETED);
         order.setConfirmTime(LocalDateTime.now());
         orderService.updateById(order);
 
@@ -210,19 +209,19 @@ public class OrderController {
         if (order == null) {
             return Result.error("订单不存在");
         }
-        if (order.getOrderStatus() == 4) {
+        if (order.getOrderStatus().equals(Constants.OrderStatus.CANCELLED)) {
             return Result.error("订单已取消");
         }
-        if (order.getOrderStatus() == 3) {
+        if (order.getOrderStatus().equals(Constants.OrderStatus.COMPLETED)) {
             return Result.error("订单已完成，无法取消");
         }
 
-        order.setOrderStatus(4);
+        order.setOrderStatus(Constants.OrderStatus.CANCELLED);
         orderService.updateById(order);
 
-        if (order.getPayStatus() == 1) {
+        if (order.getPayStatus().equals(Constants.PayStatus.PAID)) {
             List<OrderItem> items = orderItemService.lambdaQuery()
-                    .eq(OrderItem::getOrderId, id)
+                    .eq(OrderItem::getOrderNo, order.getOrderNo())
                     .list();
 
             for (OrderItem item : items) {
@@ -235,19 +234,6 @@ public class OrderController {
                 }
             }
         }
-
-        return Result.success();
-    }
-
-    @DeleteMapping("/delete/{id}")
-    public Result<Void> delete(@PathVariable Integer id) {
-        Order order = orderService.getById(id);
-        if (order == null) {
-            return Result.error("订单不存在");
-        }
-
-        order.setIsDelete(1);
-        orderService.updateById(order);
 
         return Result.success();
     }

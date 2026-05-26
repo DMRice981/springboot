@@ -16,10 +16,10 @@ public class OrderItemController {
     private final OrderItemService orderItemService;
 
     @GetMapping("/list")
-    public Result<List<OrderItem>> list(@RequestParam(required = false) Integer orderId) {
-        if (orderId != null) {
+    public Result<List<OrderItem>> list(@RequestParam(required = false) String orderNo) {
+        if (orderNo != null) {
             return Result.success(orderItemService.lambdaQuery()
-                    .eq(OrderItem::getOrderId, orderId)
+                    .eq(OrderItem::getOrderNo, orderNo)
                     .list());
         }
         return Result.success(orderItemService.list());

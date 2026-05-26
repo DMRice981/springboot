@@ -1,6 +1,7 @@
 package com.mybatisplus.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.mybatisplus.common.Constants;
 import com.mybatisplus.common.Result;
 import com.mybatisplus.entity.User;
 import com.mybatisplus.service.UserService;
@@ -26,7 +27,7 @@ public class UserController {
         if (user == null) {
             return Result.error("用户名或密码错误");
         }
-        if (user.getStatus() == 0) {
+        if (user.getStatus().equals(Constants.Status.DISABLED)) {
             return Result.error("账户已被禁用");
         }
         return Result.success("登录成功", user);
@@ -41,8 +42,8 @@ public class UserController {
             return Result.error("用户名已存在");
         }
         user.setCreateTime(LocalDateTime.now());
-        user.setStatus(1);
-        user.setIsDelete(0);
+        user.setStatus(Constants.Status.ENABLED);
+        user.setIsDelete(Constants.Status.NOT_DELETED);
         userService.save(user);
         return Result.success("注册成功", user);
     }
@@ -50,7 +51,7 @@ public class UserController {
     @GetMapping("/list")
     public Result<List<User>> list() {
         List<User> list = userService.lambdaQuery()
-                .eq(User::getIsDelete, 0)
+                .eq(User::getIsDelete, Constants.Status.NOT_DELETED)
                 .orderByDesc(User::getCreateTime)
                 .list();
         return Result.success(list);
@@ -76,7 +77,7 @@ public class UserController {
     public Result<Void> delete(@PathVariable Integer id) {
         userService.lambdaUpdate()
                 .eq(User::getId, id)
-                .set(User::getIsDelete, 1)
+                .set(User::getIsDelete, Constants.Status.DELETED)
                 .set(User::getUpdateTime, LocalDateTime.now())
                 .update();
         return Result.success();
