@@ -35,6 +35,7 @@ Aran Shop 是一个基于 Spring Boot + Vue 3 的全栈电商系统，包含三�
 - MySQL 8.0+
 - Lombok
 - Dotenv（环境变量管理）
+- Jackson（统一时间格式）
 
 #### 前端技术栈
 - Vue 3
@@ -52,8 +53,8 @@ cxode/
 │   │   ├── main/
 │   │   │   ├── java/
 │   │   │   │   └── com/mybatisplus/
-│   │   │   │       ├── config/       # 配置类
-│   │   │   │       ├── controller/   # 控制器
+│   │   │   │       ├── config/       # 配置类（JacksonConfig, DotenvConfig）
+│   │   │   │       ├── controller/   # 控制器（构造器注入）
 │   │   │   │       ├── entity/       # 实体类
 │   │   │   │       ├── mapper/       # 数据访问层
 │   │   │   │       ├── service/      # 服务层
@@ -67,24 +68,39 @@ cxode/
 │   ├── .env.example              # 环境变量模板
 │   └── pom.xml
 │
-└── shop-aran/                # 前端项目
-    ├── src/
-    │   ├── api/               # API 接口
-    │   ├── assets/            # 资源文件
-    │   ├── components/       # 组件
-    │   ├── router/          # 路由配置
-    │   ├── utils/           # 工具类
-    │   ├── views/          # 页面
-    │   │   ├── admin/      # 管理员页面
-    │   │   └── seller/     # 商家页面
-    │   ├── App.vue
-    │   └── main.js
-    ├── public/
-    ├── .env                      # 环境变量（不提交）
-    ├── .env.example              # 环境变量模板
-    ├── vite.config.js
-    └── package.json
+├── shop-aran/                # 前端项目
+│   ├── src/
+│   │   ├── api/               # API 接口
+│   │   ├── assets/            # 资源文件
+│   │   ├── components/       # 组件
+│   │   ├── router/          # 路由配置
+│   │   ├── utils/           # 工具类（request.js）
+│   │   ├── views/          # 页面
+│   │   │   ├── admin/      # 管理员页面
+│   │   │   └── seller/     # 商家页面
+│   │   ├── App.vue
+│   │   └── main.js
+│   ├── public/
+│   ├── .env                      # 环境变量（不提交）
+│   ├── .env.example              # 环境变量模板
+│   ├── vite.config.js
+│   └── package.json
+│
+└── database_init.sql           # 数据库初始化脚本（唯一）
 ```
+
+### 1.4 最新更新动态
+
+| 更新内容 | 说明 | 状态 |
+|---------|------|------|
+| 构造器注入 | 所有 Controller 从 `@Autowired` 改为 `@RequiredArgsConstructor` | ✅ 已完成 |
+| 常量类 | 创建 Constants.java 统一管理状态码、错误码等 | ✅ 已完成 |
+| 时间格式统一 | 创建 JacksonConfig.java，统一时间格式为 `yyyy-MM-dd HH:mm:ss` | ✅ 已完成 |
+| 数据库文件清理 | 删除冗余的 init-db.sql，保留 database_init.sql | ✅ 已完成 |
+| 分类功能完善 | 支持树形分类结构（pid 字段） | ✅ 已完成 |
+| 售后功能完善 | 完整的售后申请和处理流程 | ✅ 已完成 |
+| 商品下架功能 | 下架商品禁用购买按钮 | ✅ 已完成 |
+| 代码格式化 | 标准化代码风格 | ✅ 已完成 |
 
 ---
 
@@ -116,14 +132,13 @@ cxode/
 
 ## 🗄️ 三、数据库配置
 
-### 3.1 数据库创建
+### 3.1 数据库初始化
 
-```sql
--- 创建数据库
-CREATE DATABASE shop_mall CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+**重要**：项目仅保留一个数据库初始化文件 [database_init.sql](file:///c:/Users/Lenovo/Desktop/cxode/database_init.sql)，已删除冗余的 `init-db.sql`。
 
--- 使用数据库
-USE shop_mall;
+```bash
+cd cxode
+mysql -u root -p < database_init.sql
 ```
 
 ### 3.2 数据库表结构设计
@@ -171,7 +186,7 @@ CREATE TABLE admin (
 ) COMMENT '管理员表';
 ```
 
-#### 商品分类表 (category)
+#### 商品分类表 (category) - 支持树形结构
 
 ```sql
 CREATE TABLE category (
@@ -342,9 +357,9 @@ CREATE TABLE after_sale (
                      └──────────────┘
                             │ N:1
                             ▼
-                     ┌─────────────┐
-                     │    goods    │
-                     └─────────────┘
+                     ┌─────────────┐     ┌─────────────┐
+                     │    goods    │◄────│   category  │
+                     └─────────────┘     └─────────────┘
                             │ 1:N
                             ▼
                      ┌─────────────┐
@@ -355,20 +370,12 @@ CREATE TABLE after_sale (
 │   seller    │───────┐
 └─────────────┘       │ 1:N
                       ▼
-┌─────────────┐      │
-│    goods    │◄─────┘
-└─────────────┘
+              ┌─────────────┐
+              │    goods    │
+              └─────────────┘
 
 ┌─────────────┐
 │   admin     │
-└─────────────┘
-
-┌─────────────┐
-│  category   │
-└─────────────┘
-
-┌─────────────┐
-│    banner   │
 └─────────────┘
 
 ┌─────────────┐      ┌─────────────┐
@@ -380,50 +387,16 @@ CREATE TABLE after_sale (
 └─────────────┘      └─────────────┘
 ```
 
-### 3.4 插入测试数据
+### 3.4 测试数据
 
-```sql
--- 插入测试管理员
-INSERT INTO admin (admin_name, password, nickname) VALUES ('admin', '123456', '超级管理员');
-
--- 插入测试商家
-INSERT INTO seller (username, password, shop_name, phone) VALUES ('seller1', '123456', '测试店铺', '13800138001');
-
--- 插入测试用户
-INSERT INTO user (username, password, phone, email) VALUES ('user1', '123456', '13800138000', 'user1@example.com');
-
--- 插入测试分类
-INSERT INTO category (name, pid, sort) VALUES 
-('电子产品', 0, 1),
-('服装', 0, 2),
-('食品', 0, 3),
-('家居', 0, 4);
-
--- 插入测试商品
-INSERT INTO goods (category_id, goods_name, goods_img, price, market_price, stock, sales, goods_desc, seller_id) VALUES 
-(1, '智能手机', 'https://picsum.photos/400/400?1', 2999.00, 3999.00, 100, 0, '高性能智能手机', 1),
-(2, '时尚T恤', 'https://picsum.photos/400/400?2', 99.00, 199.00, 200, 0, '舒适透气T恤', 1),
-(3, '进口零食', 'https://picsum.photos/400/400?3', 59.00, 99.00, 150, 0, '美味进口零食', 1);
-
--- 插入轮播图
-INSERT INTO banner (img_url, link_url, sort) VALUES 
-('https://picsum.photos/1200/400?1', '/', 1),
-('https://picsum.photos/1200/400?2', '/', 2);
-
--- 插入测试收货地址
-INSERT INTO user_address (user_id, name, phone, province, city, district, detail, is_default) VALUES 
-(1, '张三', '13800138000', '广东省', '深圳市', '南山区', '科技园1号', 1);
-```
-
-### 3.5 数据库触发器
-
-项目已配置数据库触发器用于自动处理业务逻辑，详见 [database_triggers.sql](file:///c:/Users/Lenovo/Desktop/cxode/database_triggers.sql)。
-
-**主要触发器功能：**
-
-1. **订单支付后自动扣减库存并增加销量** - 当订单支付状态变更时自动更新商品库存和销量
-2. **订单状态时间自动记录** - 自动设置支付时间、发货时间、确认收货时间
-3. **时间戳自动管理** - 自动管理订单、商品、购物车等表的时间戳字段
+数据库初始化脚本已包含测试数据：
+- 管理员：admin / 123456
+- 商家：seller1 / 123456
+- 用户：user1 / 123456
+- 分类：电子产品、服装、食品、家居
+- 商品：4个测试商品
+- 轮播图：2张测试轮播图
+- 收货地址：1条测试地址
 
 ---
 
@@ -434,9 +407,11 @@ INSERT INTO user_address (user_id, name, phone, province, city, district, detail
 ```
 springboot/src/main/java/com/mybatisplus/
 ├── config/
-│   └── DotenvConfig.java          # 环境变量配置
-├── controller/                  # 控制器层
-├── entity/                    # 实体类
+│   ├── DotenvConfig.java          # 环境变量配置
+│   ├── JacksonConfig.java         # 统一时间格式配置
+│   └── Constants.java             # 常量类（状态码、错误码等）
+├── controller/                  # 控制器层（构造器注入）
+├── entity/                    # 实体类（含 @JsonFormat 注解）
 ├── mapper/                   # 数据访问层
 ├── service/                  # 服务层
 │   └── impl/               # 服务实现
@@ -477,11 +452,11 @@ DB_SERVER_TIMEZONE=GMT%2B8
 DB_USE_SSL=false
 ```
 
-### 4.3 后端架构说明
+### 4.3 后端架构改进
 
-#### 依赖注入改进
+#### 构造器注入（推荐）
 
-所有 Controller 已从 `@Autowired` 字段注入重构为构造函数注入，使用 Lombok 的 `@RequiredArgsConstructor` 注解：
+所有 Controller 已从 `@Autowired` 字段注入重构为构造函数注入：
 
 ```java
 @RestController
@@ -494,10 +469,28 @@ public class AfterSaleController {
 }
 ```
 
-#### DTO 数据传输对象
+#### 统一时间格式
 
-- `OrderDTO`：订单数据传输对象
-- `AfterSaleDTO`：售后数据传输对象（包含商品信息）
+通过 `JacksonConfig.java` 统一配置时间格式为 `yyyy-MM-dd HH:mm:ss`，所有实体类时间字段添加 `@JsonFormat` 注解：
+
+```java
+@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+private LocalDateTime createTime;
+```
+
+#### 常量管理
+
+使用 `Constants.java` 统一管理状态码、错误码等常量，消除硬编码：
+
+```java
+public class Constants {
+    public static final int SUCCESS = 200;
+    public static final int ERROR = 500;
+    public static final int ORDER_STATUS_PENDING = 0;
+    public static final int ORDER_STATUS_SHIPPED = 1;
+    // ...
+}
+```
 
 ### 4.4 后端启动
 
@@ -517,9 +510,7 @@ cd springboot
 
 ### 4.5 验证后端
 
-测试接口
-
-访问 http://localhost:8081/api/goods/list
+测试接口：http://localhost:8081/api/goods/list
 
 ---
 
@@ -545,31 +536,31 @@ shop-aran/src/
 ├── components/       # 组件
 ├── router/          # 路由配置
 ├── utils/           # 工具类
-│   └── request.js
+│   └── request.js   # Axios 封装（含拦截器）
 ├── views/          # 页面
 │   ├── admin/      # 管理员页面
 │   │   ├── AdminIndex.vue
 │   │   ├── AdminLogin.vue
 │   │   ├── BannerManage.vue
-│   │   ├── CategoryManage.vue
-│   │   ├── GoodsManage.vue
+│   │   ├── CategoryManage.vue   # 分类管理（支持树形结构）
+│   │   ├── GoodsManage.vue      # 商品管理（含分类下拉）
 │   │   ├── OrderManage.vue
 │   │   └── UserManage.vue
 │   ├── seller/     # 商家页面
-│   │   ├── SellerAfterSale.vue
-│   │   ├── SellerGoods.vue
+│   │   ├── SellerAfterSale.vue  # 售后处理
+│   │   ├── SellerGoods.vue      # 商品管理
 │   │   ├── SellerIndex.vue
 │   │   ├── SellerLogin.vue
 │   │   └── SellerRegister.vue
 │   ├── Address.vue
-│   ├── AfterSale.vue
+│   ├── AfterSale.vue            # 用户售后申请
 │   ├── Cart.vue
 │   ├── Checkout.vue
 │   ├── Comment.vue
-│   ├── GoodsDetail.vue
-│   ├── Index.vue
+│   ├── GoodsDetail.vue          # 商品详情（含下架状态）
+│   ├── Index.vue                # 首页（含分类导航）
 │   ├── Login.vue
-│   ├── Order.vue
+│   ├── Order.vue                # 订单管理
 │   ├── Register.vue
 │   └── User.vue
 ├── App.vue        # 根组件
@@ -599,8 +590,6 @@ VITE_REQUEST_TIMEOUT=5000
 ```
 
 ### 5.3 代码格式化
-
-项目已配置 Prettier 代码格式化：
 
 ```bash
 cd shop-aran
@@ -633,112 +622,70 @@ npm run dev
 #### 用户注册
 - 前端页面：[Register.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/Register.vue)
 - 后端接口：[UserController.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/controller/UserController.java)
-- 功能：用户注册账号
 
 #### 用户登录
 - 前端页面：[Login.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/Login.vue)
-- 功能：用户登录验证
 
 #### 用户中心
 - 前端页面：[User.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/User.vue)
-- 功能：查看个人信息、收货地址管理
 
 #### 收货地址管理
 - 前端页面：[Address.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/Address.vue)
 - 后端接口：[UserAddressController.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/controller/UserAddressController.java)
-- 功能：添加、编辑、删除收货地址，设置默认地址
 
 ### 6.2 商家模块
 
-#### 商家注册
-- 前端页面：[SellerRegister.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/seller/SellerRegister.vue)
-- 后端接口：[SellerController.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/controller/SellerController.java)
-
-#### 商家登录
-- 前端页面：[SellerLogin.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/seller/SellerLogin.vue)
-
-#### 商家中心
-- 前端页面：[SellerIndex.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/seller/SellerIndex.vue)
+#### 商家注册/登录
+- 前端页面：[SellerRegister.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/seller/SellerRegister.vue)、[SellerLogin.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/seller/SellerLogin.vue)
 
 #### 商品管理
 - 前端页面：[SellerGoods.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/seller/SellerGoods.vue)
-- 后端接口：[GoodsController.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/controller/GoodsController.java)
-- 功能：添加商品、编辑商品、上架/下架商品、删除商品、查看商品列表
+- 功能：添加、编辑、上架/下架商品
 
-#### 售后管理
+#### 售后处理
 - 前端页面：[SellerAfterSale.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/seller/SellerAfterSale.vue)
-- 后端接口：[AfterSaleController.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/controller/AfterSaleController.java)
-- 功能：查看售后申请列表、处理售后申请
+- 功能：查看和处理售后申请
 
 ### 6.3 管理员模块
 
-#### 管理员登录
-- 前端页面：[AdminLogin.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/admin/AdminLogin.vue)
-- 后端接口：[AdminController.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/controller/AdminController.java)
-
-#### 管理后台
-- 前端页面：[AdminIndex.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/admin/AdminIndex.vue)
-- 功能：平台总览
-
-#### 用户管理
-- 前端页面：[UserManage.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/admin/UserManage.vue)
-- 功能：查看用户列表、管理用户
+#### 分类管理
+- 前端页面：[CategoryManage.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/admin/CategoryManage.vue)
+- 功能：支持树形分类结构，保护子分类
 
 #### 商品管理
 - 前端页面：[GoodsManage.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/admin/GoodsManage.vue)
-- 功能：平台商品审核、管理
-
-#### 订单管理
-- 前端页面：[OrderManage.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/admin/OrderManage.vue)
-- 功能：查看平台订单列表
-
-#### 分类管理
-- 前端页面：[CategoryManage.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/admin/CategoryManage.vue)
-- 后端接口：[CategoryController.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/controller/CategoryController.java)
-- 功能：添加、编辑、删除商品分类
+- 功能：含分类下拉选择、状态管理
 
 #### 轮播图管理
 - 前端页面：[BannerManage.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/admin/BannerManage.vue)
-- 后端接口：[BannerController.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/controller/BannerController.java)
-- 功能：添加、编辑、删除首页轮播图
 
 ### 6.4 商品模块
 
-#### 商品列表
+#### 首页
 - 前端页面：[Index.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/Index.vue)
-- 功能：展示所有商品、商品卡片、轮播图
+- 功能：分类导航、轮播图、商品列表
 
 #### 商品详情
 - 前端页面：[GoodsDetail.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/GoodsDetail.vue)
-- 功能：查看商品详情、库存状态、购买按钮
-- 特性：商品下架时显示提示，禁用购买按钮
+- 功能：下架商品禁用购买按钮
 
 #### 购物车
 - 前端页面：[Cart.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/Cart.vue)
-- 后端接口：[CartController.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/controller/CartController.java)
-- 功能：添加商品到购物车、修改数量、删除商品、结算
-
-#### 商品评论
-- 前端页面：[Comment.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/Comment.vue)
-- 后端接口：[GoodsCommentController.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/controller/GoodsCommentController.java)
 
 ### 6.5 订单模块
 
 #### 订单管理
 - 前端页面：[Order.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/Order.vue)
-- 后端接口：[OrderController.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/controller/OrderController.java)
-- 功能：查看订单列表、申请售后
+- 功能：查看订单、申请售后
 
 #### 结算页面
 - 前端页面：[Checkout.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/Checkout.vue)
-- 功能：选择收货地址、确认订单、提交订单
 
 ### 6.6 售后模块
 
 #### 售后申请
 - 前端页面：[AfterSale.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/AfterSale.vue)
 - 功能：用户申请售后、查看售后记录
-- 特性：从订单页面发起售后申请，选择订单商品
 
 ---
 
@@ -748,54 +695,19 @@ npm run dev
 
 #### 后端开发流程
 
-1. **创建实体类**
-   - 在 `entity/` 目录创建实体类
-   - 使用 `@TableName` 注解指定表名
-   - 使用 Lombok 的 `@Data`、`@AllArgsConstructor`、`@NoArgsConstructor` 注解
-   - 使用 `@TableId(type = IdType.AUTO)` 注解主键
-
-2. **创建 Mapper 接口**
-   - 在 `mapper/` 目录创建
-   - 继承 `BaseMapper<实体>`
-
-3. **创建 Service 接口**
-   - 在 `service/` 目录创建
-   - 继承 `IService<实体>`
-   - 定义业务方法（可选）
-
-4. **创建 Service 实现**
-   - 在 `service/impl/` 目录创建
-   - 继承 `ServiceImpl<Mapper, Entity>`
-   - 实现 Service 接口
-   - 添加 `@Service` 注解
-
-5. **创建 Controller**
-   - 在 `controller/` 目录创建
-   - 添加 `@RestController` 和 `@RequestMapping` 注解
-   - 使用 `@RequiredArgsConstructor` 实现构造函数注入
-   - 编写 RESTful 接口
-
-6. **创建 DTO（如需要）**
-   - 在 `dto/` 目录创建数据传输对象
-   - 用于组合多个实体的数据返回
+1. **创建实体类** → `entity/` 目录
+2. **创建 Mapper 接口** → `mapper/` 目录
+3. **创建 Service 接口** → `service/` 目录
+4. **创建 Service 实现** → `service/impl/` 目录
+5. **创建 Controller** → `controller/` 目录（使用构造器注入）
+6. **创建 DTO（如需要）** → `dto/` 目录
 
 #### 前端开发流程
 
-1. **创建 API 文件**
-   - 在 `api/` 目录创建
-   - 使用 request 封装接口调用
-
-2. **创建页面组件**
-   - 在 `views/` 目录创建
-   - 使用 Vue 3 Composition API
-   - 使用 Element Plus 组件库
-
-3. **配置路由**
-   - 在 `router/index.js` 配置路由
-   - 设置路由守卫（如需要）
-
-4. **格式化代码**
-   - 运行 `npm run format`
+1. **创建 API 文件** → `api/` 目录
+2. **创建页面组件** → `views/` 目录
+3. **配置路由** → `router/index.js`
+4. **格式化代码** → `npm run format`
 
 ### 7.2 代码格式化
 
@@ -808,29 +720,15 @@ npm run format
 
 ## 📦 八、测试部署
 
-### 8.1 后端测试
+### 8.1 测试账户
 
-#### 用户注册测试
+| 角色 | 用户名 | 密码 |
+|------|--------|------|
+| 管理员 | admin | 123456 |
+| 商家 | seller1 | 123456 |
+| 用户 | user1 | 123456 |
 
-1. 启动后端
-2. 访问 http://localhost:8081/api/goods/list
-3. 使用 Postman 或浏览器测试
-
-### 8.2 前端测试
-
-#### 注册测试用户
-- 用户名：user1
-- 密码：123456
-
-#### 注册测试商家
-- 用户名：seller1
-- 密码：123456
-
-#### 登录测试管理员
-- 用户名：admin
-- 密码：123456
-
-### 8.3 功能测试清单
+### 8.2 功能测试清单
 
 - [ ] 用户注册登录
 - [ ] 用户收货地址管理
@@ -838,34 +736,27 @@ npm run format
 - [ ] 商家商品管理（添加、编辑、下架）
 - [ ] 商家售后处理
 - [ ] 管理员登录
-- [ ] 管理员后台功能（用户、商品、订单、分类、轮播图）
-- [ ] 商品浏览
-- [ ] 商品详情（包含下架状态）
+- [ ] 管理员分类管理（树形结构）
+- [ ] 商品浏览（分类导航）
+- [ ] 商品详情（下架状态禁用购买）
 - [ ] 购物车功能
 - [ ] 下单购买
 - [ ] 订单管理
 - [ ] 售后申请和处理
 
-### 8.4 后端打包
+### 8.3 后端打包
 
 ```bash
 cd springboot
 .\mvnw.cmd clean package
 ```
 
-### 8.5 前端打包
+### 8.4 前端打包
 
 ```bash
 cd shop-aran
 npm run build
 ```
-
-### 8.6 生产部署
-
-1. 修改环境变量配置
-2. 配置生产数据库
-3. 配置 Nginx 反向代理
-4. 配置 HTTPS
 
 ---
 
@@ -874,36 +765,20 @@ npm run build
 ### 后端命令
 
 ```bash
-# 进入后端目录
 cd springboot
-
-# 编译项目
-.\mvnw.cmd clean compile
-
-# 运行项目
-.\mvnw.cmd spring-boot:run
-
-# 打包项目
-.\mvnw.cmd clean package
+.\mvnw.cmd clean compile    # 编译
+.\mvnw.cmd spring-boot:run  # 运行
+.\mvnw.cmd clean package    # 打包
 ```
 
 ### 前端命令
 
 ```bash
-# 进入前端目录
 cd shop-aran
-
-# 安装依赖
-npm install
-
-# 启动开发
-npm run dev
-
-# 格式化代码
-npm run format
-
-# 打包构建
-npm run build
+npm install    # 安装依赖
+npm run dev    # 启动开发
+npm run format # 格式化代码
+npm run build  # 打包构建
 ```
 
 ---
@@ -912,66 +787,39 @@ npm run build
 
 ### 10.1 常见问题
 
-#### 后端启动失败
-
-1. 检查数据库连接配置
-2. 检查 .env 文件配置
-3. 确认数据库已启动
-4. 确认数据库表已创建
-5. 检查端口 8081 是否被占用
-
-#### 前端启动失败
-
-1. 检查 Node.js 版本
-2. 删除 node_modules 重新安装
-3. 检查 .env 文件配置
-4. 确认后端已启动
-5. 检查端口 5173 是否被占用
-
-#### 数据库连接失败
-
-1. 确认 MySQL 服务已启动
-2. 检查数据库用户名密码
-3. 确认数据库名称正确
-4. 检查端口 3306 是否被占用
-
-#### 前端代理错误
-
-- 问题：`ECONNREFUSED` when trying to connect to backend
-- 解决：确保后端已启动在 8081 端口，检查 .env 配置
+#### 前端代理错误 (ECONNREFUSED)
+- 原因：后端服务未启动或端口配置错误
+- 解决：启动后端服务，检查 `.env` 配置
 
 #### 时间类型转换错误
+- 原因：时间格式不一致
+- 解决：已通过 `JacksonConfig` 统一配置
 
-- 问题：`LocalDateTime` 无法转换为 `Date`
-- 解决：确保所有实体类时间字段使用 `java.time.LocalDateTime`（已修复）
+#### 商品详情页打不开
+- 原因：缺少 `@GetMapping("/get/{id}")` 端点
+- 解决：已添加到 `GoodsController`
+
+#### 订单页不显示订单
+- 原因：API 调用缺少 `userId` 参数
+- 解决：已修复 API 调用
 
 ---
 
 ## 🎯 十一、开发最佳实践
 
 ### 11.1 代码规范
-
 1. 遵循 RESTful API 设计
 2. 使用环境变量管理配置（不要硬编码）
 3. 使用构造函数注入代替 `@Autowired`
 4. 使用 Lombok 简化代码
 5. 代码提交前格式化
-6. 注释清晰
+6. 使用常量类管理状态码和错误码
 
-### 11.2 Git 规范
-
-1. 分支命名
-2. 提交信息规范
-3. 代码审查
-4. **永远不要提交 .env 文件**
-
-### 11.3 安全实践
-
-1. 数据库密码等敏感信息存储在 .env 文件
-2. .env 文件添加到 .gitignore
-3. 只提交 .env.example 作为模板
-4. 不同环境使用不同的 .env 文件
-5. 定期轮换敏感信息
+### 11.2 安全实践
+1. 敏感信息存储在 `.env` 文件
+2. `.env` 文件添加到 `.gitignore`
+3. 只提交 `.env.example` 作为模板
+4. 不同环境使用不同的配置
 
 ---
 
@@ -979,13 +827,11 @@ npm run build
 
 | 文件 | 说明 |
 |------|------|
-| [CONFIGURATION.md](file:///c:/Users/Lenovo/Desktop/cxode/CONFIGURATION.md) | 配置指南 |
-| [DEVELOPMENT_GUIDE.md](file:///c:/Users/Lenovo/Desktop/cxode/DEVELOPMENT_GUIDE.md) | 本文档 |
-| [database_triggers.sql](file:///c:/Users/Lenovo/Desktop/cxode/database_triggers.sql) | 数据库触发器 |
+| [database_init.sql](file:///c:/Users/Lenovo/Desktop/cxode/database_init.sql) | 数据库初始化脚本 |
 | [springboot/pom.xml](file:///c:/Users/Lenovo/Desktop/cxode/springboot/pom.xml) | 后端依赖配置 |
+| [springboot/src/main/java/com/mybatisplus/config/Constants.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/config/Constants.java) | 常量类 |
+| [springboot/src/main/java/com/mybatisplus/config/JacksonConfig.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/config/JacksonConfig.java) | 时间格式配置 |
 | [shop-aran/package.json](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/package.json) | 前端依赖配置 |
-| [springboot/.env.example](file:///c:/Users/Lenovo/Desktop/cxode/springboot/.env.example) | 后端配置模板 |
-| [shop-aran/.env.example](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/.env.example) | 前端配置模板 |
 | [shop-aran/src/router/index.js](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/router/index.js) | 路由配置 |
 
 ---
@@ -996,10 +842,7 @@ npm run build
 - [ ] JDK 17+ 安装
 - [ ] Node.js 20+ 安装
 - [ ] MySQL 8.0+ 安装
-- [ ] 数据库创建
-- [ ] 数据库表创建
-- [ ] 数据库触发器创建
-- [ ] 测试数据插入
+- [ ] 数据库初始化（运行 database_init.sql）
 - [ ] 后端 .env 文件配置
 - [ ] 前端 .env 文件配置
 
@@ -1020,7 +863,6 @@ npm run build
 - [ ] 文档更新
 - [ ] 配置检查
 - [ ] 敏感信息未提交
-- [ ] 生产环境配置准备
 
 ---
 
