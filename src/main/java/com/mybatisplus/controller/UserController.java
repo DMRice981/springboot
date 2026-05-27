@@ -35,6 +35,12 @@ public class UserController {
 
     @PostMapping("/register")
     public Result<User> register(@RequestBody User user) {
+        if (user.getUsername() == null || user.getUsername().trim().isEmpty()) {
+            return Result.error("用户名不能为空");
+        }
+        if (user.getPassword() == null || user.getPassword().trim().isEmpty()) {
+            return Result.error("密码不能为空");
+        }
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(User::getUsername, user.getUsername());
         User existUser = userService.getOne(wrapper);
@@ -68,13 +74,25 @@ public class UserController {
 
     @PutMapping("/update")
     public Result<User> update(@RequestBody User user) {
+        if (user.getId() == null) {
+            return Result.error("用户ID不能为空");
+        }
+        User existUser = userService.getById(user.getId());
+        if (existUser == null) {
+            return Result.error("用户不存在");
+        }
+        user.setIsDelete(null);
         user.setUpdateTime(LocalDateTime.now());
         userService.updateById(user);
-        return Result.success("更新成功", user);
+        return Result.success("更新成功", userService.getById(user.getId()));
     }
 
     @DeleteMapping("/delete/{id}")
     public Result<Void> delete(@PathVariable Integer id) {
+        User user = userService.getById(id);
+        if (user == null) {
+            return Result.error("用户不存在");
+        }
         userService.lambdaUpdate()
                 .eq(User::getId, id)
                 .set(User::getIsDelete, Constants.Status.DELETED)
@@ -85,6 +103,16 @@ public class UserController {
 
     @PostMapping("/status")
     public Result<Void> updateStatus(@RequestParam Integer id, @RequestParam Integer status) {
+        if (id == null) {
+            return Result.error("用户ID不能为空");
+        }
+        if (status == null || (status != Constants.Status.ENABLED && status != Constants.Status.DISABLED)) {
+            return Result.error("状态值无效");
+        }
+        User user = userService.getById(id);
+        if (user == null) {
+            return Result.error("用户不存在");
+        }
         userService.lambdaUpdate()
                 .eq(User::getId, id)
                 .set(User::getStatus, status)

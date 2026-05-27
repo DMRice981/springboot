@@ -127,6 +127,16 @@ public class GoodsController {
 
     @PostMapping("/status")
     public Result<Void> updateStatus(@RequestParam Integer id, @RequestParam Integer status) {
+        if (id == null) {
+            return Result.error("商品ID不能为空");
+        }
+        if (status == null || (status != Constants.GoodsStatus.ON_SHELF && status != Constants.GoodsStatus.OFF_SHELF)) {
+            return Result.error("状态值无效");
+        }
+        Goods goods = goodsService.getById(id);
+        if (goods == null) {
+            return Result.error("商品不存在");
+        }
         goodsService.lambdaUpdate()
                 .eq(Goods::getId, id)
                 .set(Goods::getStatus, status)
@@ -137,6 +147,10 @@ public class GoodsController {
 
     @DeleteMapping("/delete/{id}")
     public Result<Void> delete(@PathVariable Integer id) {
+        Goods goods = goodsService.getById(id);
+        if (goods == null) {
+            return Result.error("商品不存在");
+        }
         goodsService.lambdaUpdate()
                 .eq(Goods::getId, id)
                 .set(Goods::getIsDelete, Constants.Status.DELETED)

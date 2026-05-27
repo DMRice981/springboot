@@ -108,6 +108,12 @@ public class OrderController {
             if (goods == null) {
                 return Result.error("商品不存在");
             }
+            if (goods.getStatus() != Constants.GoodsStatus.ON_SHELF) {
+                return Result.error(goods.getGoodsName() + " 商品已下架");
+            }
+            if (goods.getIsDelete() != null && goods.getIsDelete() == Constants.Status.DELETED) {
+                return Result.error(goods.getGoodsName() + " 商品已删除");
+            }
             if (goods.getStock() < quantity) {
                 return Result.error(goods.getGoodsName() + " 库存不足");
             }
