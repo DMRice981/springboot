@@ -4,10 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.mybatisplus.common.Constants;
 import com.mybatisplus.common.Result;
 import com.mybatisplus.entity.Goods;
+import com.mybatisplus.entity.Seller;
 import com.mybatisplus.service.GoodsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpSession;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -70,9 +72,13 @@ public class GoodsController {
     }
 
     @GetMapping("/my")
-    public Result<List<Goods>> myGoods(@RequestParam Integer sellerId) {
+    public Result<List<Goods>> myGoods(HttpSession session) {
+        Seller seller = (Seller) session.getAttribute("seller");
+        if (seller == null) {
+            return Result.error("请先登录商家账号");
+        }
         List<Goods> list = goodsService.lambdaQuery()
-                .eq(Goods::getSellerId, sellerId)
+                .eq(Goods::getSellerId, seller.getId())
                 .eq(Goods::getIsDelete, Constants.Status.NOT_DELETED)
                 .orderByDesc(Goods::getCreateTime)
                 .list();
@@ -80,7 +86,12 @@ public class GoodsController {
     }
 
     @PostMapping("/add")
-    public Result<Goods> add(@RequestBody Goods goodsFromFront) {
+    public Result<Goods> add(@RequestBody Goods goodsFromFront, HttpSession session) {
+        Seller seller = (Seller) session.getAttribute("seller");
+        if (seller == null) {
+            return Result.error("请先登录商家账号");
+        }
+        
         Goods goods = new Goods();
         goods.setCategoryId(goodsFromFront.getCategoryId());
         goods.setGoodsName(goodsFromFront.getGoodsName());
@@ -91,7 +102,7 @@ public class GoodsController {
         goods.setSales(0);
         goods.setGoodsImg(goodsFromFront.getGoodsImg());
         goods.setGoodsDesc(goodsFromFront.getGoodsDesc());
-        goods.setSellerId(goodsFromFront.getSellerId());
+        goods.setSellerId(seller.getId());
         goods.setStatus(Constants.GoodsStatus.ON_SHELF);
         goods.setIsDelete(Constants.Status.NOT_DELETED);
         goods.setCreateTime(LocalDateTime.now());
@@ -102,14 +113,23 @@ public class GoodsController {
     }
 
     @PutMapping("/update")
-    public Result<Goods> update(@RequestBody Goods goodsFromFront) {
+    public Result<Goods> update(@RequestBody Goods goodsFromFront, HttpSession session) {
         if (goodsFromFront.getId() == null) {
             return Result.error("商品ID不能为空");
+        }
+        
+        Seller seller = (Seller) session.getAttribute("seller");
+        if (seller == null) {
+            return Result.error("请先登录商家账号");
         }
         
         Goods goods = goodsService.getById(goodsFromFront.getId());
         if (goods == null) {
             return Result.error("商品不存在");
+        }
+        
+        if (!goods.getSellerId().equals(seller.getId())) {
+            return Result.error("您无权操作该商品");
         }
         
         goods.setCategoryId(goodsFromFront.getCategoryId());
@@ -126,17 +146,28 @@ public class GoodsController {
     }
 
     @PostMapping("/status")
-    public Result<Void> updateStatus(@RequestParam Integer id, @RequestParam Integer status) {
+    public Result<Void> updateStatus(@RequestParam Integer id, @RequestParam Integer status, HttpSession session) {
         if (id == null) {
             return Result.error("商品ID不能为空");
         }
         if (status == null || (status != Constants.GoodsStatus.ON_SHELF && status != Constants.GoodsStatus.OFF_SHELF)) {
             return Result.error("状态值无效");
         }
+        
+        Seller seller = (Seller) session.getAttribute("seller");
+        if (seller == null) {
+            return Result.error("请先登录商家账号");
+        }
+        
         Goods goods = goodsService.getById(id);
         if (goods == null) {
             return Result.error("商品不存在");
         }
+        
+        if (!goods.getSellerId().equals(seller.getId())) {
+            return Result.error("您无权操作该商品");
+        }
+        
         goodsService.lambdaUpdate()
                 .eq(Goods::getId, id)
                 .set(Goods::getStatus, status)
@@ -146,11 +177,21 @@ public class GoodsController {
     }
 
     @DeleteMapping("/delete/{id}")
-    public Result<Void> delete(@PathVariable Integer id) {
+    public Result<Void> delete(@PathVariable Integer id, HttpSession session) {
+        Seller seller = (Seller) session.getAttribute("seller");
+        if (seller == null) {
+            return Result.error("请先登录商家账号");
+        }
+        
         Goods goods = goodsService.getById(id);
         if (goods == null) {
             return Result.error("商品不存在");
         }
+        
+        if (!goods.getSellerId().equals(seller.getId())) {
+            return Result.error("您无权操作该商品");
+        }
+        
         goodsService.lambdaUpdate()
                 .eq(Goods::getId, id)
                 .set(Goods::getIsDelete, Constants.Status.DELETED)
