@@ -7,6 +7,7 @@ import com.mybatisplus.service.SellerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpSession;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -40,7 +41,7 @@ public class SellerController {
     }
 
     @PostMapping("/login")
-    public Result<Seller> login(@RequestBody Seller seller) {
+    public Result<Seller> login(@RequestBody Seller seller, HttpSession session) {
         if (seller.getUsername() == null || seller.getUsername().isEmpty()) {
             return Result.error("用户名不能为空");
         }
@@ -54,6 +55,7 @@ public class SellerController {
         Seller one = sellerService.getOne(wrapper);
 
         if (one != null) {
+            session.setAttribute("seller", one);
             return Result.success("登录成功", one);
         } else {
             return Result.error("账号或密码错误");

@@ -7,6 +7,7 @@ import com.mybatisplus.service.AdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpSession;
 import java.util.List;
 
 @RestController
@@ -17,7 +18,7 @@ public class AdminController {
     private final AdminService adminService;
 
     @PostMapping("/login")
-    public Result<Admin> login(@RequestBody Admin loginAdmin) {
+    public Result<Admin> login(@RequestBody Admin loginAdmin, HttpSession session) {
         LambdaQueryWrapper<Admin> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Admin::getAdminName, loginAdmin.getAdminName())
                .eq(Admin::getPassword, loginAdmin.getPassword());
@@ -28,6 +29,8 @@ public class AdminController {
         if (admin.getStatus() != null && admin.getStatus() == 0) {
             return Result.error("账户已被禁用");
         }
+        // 存储管理员信息到session
+        session.setAttribute("admin", admin);
         return Result.success("登录成功", admin);
     }
 

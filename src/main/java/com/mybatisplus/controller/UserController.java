@@ -8,6 +8,7 @@ import com.mybatisplus.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpSession;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -19,7 +20,7 @@ public class UserController {
     private final UserService userService;
 
     @PostMapping("/login")
-    public Result<User> login(@RequestBody User loginUser) {
+    public Result<User> login(@RequestBody User loginUser, HttpSession session) {
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(User::getUsername, loginUser.getUsername())
                .eq(User::getPassword, loginUser.getPassword());
@@ -30,6 +31,8 @@ public class UserController {
         if (user.getStatus().equals(Constants.Status.DISABLED)) {
             return Result.error("账户已被禁用");
         }
+        // 存储用户信息到session
+        session.setAttribute("user", user);
         return Result.success("登录成功", user);
     }
 
