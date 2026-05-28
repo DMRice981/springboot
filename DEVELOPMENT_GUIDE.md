@@ -24,7 +24,7 @@
 
 Aran Shop 是一个基于 Spring Boot + Vue 3 的全栈电商系统，包含三个角色：
 - **用户**：浏览商品、下单购物、申请售后
-- **商家**：管理商品（仅能查看自己的商品）、处理售后
+- **商家**：管理商品、处理订单发货、处理售后
 - **管理员**：管理平台商品、用户、订单等
 
 ### 1.2 技术栈
@@ -108,6 +108,10 @@ cxode/
 
 | 更新内容 | 说明 | 状态 |
 |---------|------|------|
+| 商家订单管理功能 | 新增 SellerOrder.vue，商家可查看和处理订单 | ✅ 已完成 |
+| 管理员商品管理显示商家 | 商品列表显示商家店铺名称和商家用户名 | ✅ 已完成 |
+| 订单状态流转优化 | 重新定义订单状态：0待支付→1待发货→2已发货→3已完成→4已取消 | ✅ 已完成 |
+| 前端请求方式统一 | 所有页面统一使用 http 插件替代直接 fetch 调用 | ✅ 已完成 |
 | 构造器注入 | 所有 Controller 从 `@Autowired` 改为 `@RequiredArgsConstructor` | ✅ 已完成 |
 | 常量类 | 创建 Constants.java 统一管理状态码、错误码等 | ✅ 已完成 |
 | 时间格式统一 | 创建 JacksonConfig.java，统一时间格式为 `yyyy-MM-dd HH:mm:ss` | ✅ 已完成 |
@@ -276,13 +280,20 @@ CREATE TABLE `order` (
     total_price DECIMAL(10,2) COMMENT '总价',
     pay_price DECIMAL(10,2) COMMENT '实付金额',
     pay_status INT DEFAULT 0 COMMENT '支付状态：0未支付 1已支付',
-    order_status INT DEFAULT 0 COMMENT '订单状态：0待付款 1待发货 2已发货 3已完成 4已取消',
+    order_status INT DEFAULT 0 COMMENT '订单状态：0待支付 1待发货 2已发货 3已完成 4已取消',
     pay_time DATETIME COMMENT '支付时间',
     send_time DATETIME COMMENT '发货时间',
     confirm_time DATETIME COMMENT '确认收货时间',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间'
 ) COMMENT '订单表';
 ```
+
+**订单状态说明**：
+- `0`: 待支付 - 用户创建订单，等待支付
+- `1`: 待发货 - 用户已支付，等待商家发货
+- `2`: 已发货 - 商家已发货，商品配送中
+- `3`: 已完成 - 用户确认收货，订单完成
+- `4`: 已取消 - 订单被取消
 
 #### 订单项表 (order_item)
 
@@ -441,7 +452,8 @@ springboot/src/main/java/com/mybatisplus/
 │   └── impl/                        # 服务实现
 ├── dto/                             # 数据传输对象
 │   ├── OrderDTO.java
-│   └── AfterSaleDTO.java
+│   ├── AfterSaleDTO.java
+│   └── GoodsWithSellerVO.java       # 商品视图对象（包含商家信息）
 ├── interceptor/                     # 拦截器
 │   └── LoginInterceptor.java        # 登录拦截器
 └── SpringbootApplication.java       # 启动类
@@ -510,11 +522,26 @@ private LocalDateTime createTime;
 
 ```java
 public class Constants {
-    public static final int SUCCESS = 200;
-    public static final int ERROR = 500;
-    public static final int ORDER_STATUS_PENDING = 0;
-    public static final int ORDER_STATUS_SHIPPED = 1;
-    // ...
+    // 通用状态
+    public static class Status {
+        public static final Integer NOT_DELETED = 0;
+        public static final Integer DELETED = 1;
+    }
+    
+    // 商品状态
+    public static class GoodsStatus {
+        public static final Integer ON_SHELF = 1;
+        public static final Integer OFF_SHELF = 0;
+    }
+    
+    // 订单状态
+    public static class OrderStatus {
+        public static final Integer PENDING = 0;           // 待支付
+        public static final Integer PAID = 1;              // 已支付，待发货
+        public static final Integer SHIPPED = 2;           // 已发货，配送中
+        public static final Integer COMPLETED = 3;         // 已完成
+        public static final Integer CANCELLED = 4;          // 已取消
+    }
 }
 ```
 
@@ -600,14 +627,15 @@ shop-aran/src/
 │   │   ├── AdminLogin.vue
 │   │   ├── BannerManage.vue
 │   │   ├── CategoryManage.vue   # 分类管理（支持树形结构）
-│   │   ├── GoodsManage.vue      # 商品管理（含分类下拉）
+│   │   ├── GoodsManage.vue       # 商品管理（含商家信息显示）
 │   │   ├── OrderManage.vue
 │   │   └── UserManage.vue
 │   ├── seller/        # 商家页面
-│   │   ├── SellerAfterSale.vue  # 售后处理
-│   │   ├── SellerGoods.vue      # 商品管理（仅显示自己的商品）
-│   │   ├── SellerIndex.vue
+│   │   ├── SellerAfterSale.vue   # 售后处理
+│   │   ├── SellerGoods.vue       # 商品管理（仅显示自己的商品）
+│   │   ├── SellerIndex.vue       # 商家中心首页
 │   │   ├── SellerLogin.vue
+│   │   ├── SellerOrder.vue       # 订单管理（含发货功能）🆕
 │   │   └── SellerRegister.vue
 │   ├── Address.vue
 │   ├── AfterSale.vue            # 用户售后申请
@@ -671,8 +699,11 @@ const auth = inject('auth')
 msg.success('操作成功')
 msg.error('操作失败')
 
-// HTTP 请求
+// HTTP 请求（统一使用 http 插件）🆕
 const result = await http.get('/goods/list')
+const data = await http.post('/cart/add', { userId: 1, goodsId: 1, num: 1 })
+await http.put('/goods/update', formData)
+await http.delete('/goods/delete/1')
 
 // 认证管理
 auth.setUser(user)
@@ -765,6 +796,15 @@ npm run dev
 - 前端页面：[SellerGoods.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/seller/SellerGoods.vue)
 - 功能：添加、编辑、上架/下架商品（仅显示商家自己的商品）
 
+#### 订单管理 🆕
+- 前端页面：[SellerOrder.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/seller/SellerOrder.vue)
+- 功能：
+  - 查看所有订单列表
+  - 按状态筛选（全部/待发货/已发货/已完成）
+  - 订单详情查看
+  - **发货功能**（处理待发货订单）
+  - 订单状态流转（待支付→待发货→已发货→已完成）
+
 #### 售后处理
 - 前端页面：[SellerAfterSale.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/seller/SellerAfterSale.vue)
 - 功能：查看和处理售后申请
@@ -775,9 +815,14 @@ npm run dev
 - 前端页面：[CategoryManage.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/admin/CategoryManage.vue)
 - 功能：支持树形分类结构，保护子分类
 
-#### 商品管理
+#### 商品管理 🆕
 - 前端页面：[GoodsManage.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/admin/GoodsManage.vue)
-- 功能：含分类下拉选择、状态管理
+- 功能：
+  - 商品列表展示（含商家信息：店铺名称、商家用户名）
+  - 添加商品时选择商家
+  - 编辑商品时可修改商家
+  - 分类下拉选择
+  - 状态管理
 
 #### 轮播图管理
 - 前端页面：[BannerManage.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/admin/BannerManage.vue)
@@ -799,7 +844,7 @@ npm run dev
 
 #### 订单管理
 - 前端页面：[Order.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/Order.vue)
-- 功能：查看订单、申请售后
+- 功能：查看订单、申请售后、确认收货
 
 #### 结算页面
 - 前端页面：[Checkout.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/Checkout.vue)
@@ -828,10 +873,10 @@ npm run dev
 
 #### 前端开发流程
 
-1. **创建 API 文件** → `api/` 目录
-2. **创建页面组件** → `views/` 目录
-3. **配置路由** → `router/index.js`
-4. **使用插件** → 通过 `inject` 使用插件系统
+1. **创建页面组件** → `views/` 目录
+2. **配置路由** → `router/index.js`
+3. **使用插件** → 通过 `inject` 使用插件系统
+4. **统一使用 http 插件进行 API 调用** 🆕
 5. **格式化代码** → `npm run format`
 
 ### 7.2 代码格式化
@@ -859,9 +904,11 @@ npm run format
 - [ ] 用户收货地址管理
 - [ ] 商家注册登录
 - [ ] 商家商品管理（添加、编辑、下架、只能看到自己的商品）
+- [ ] 商家订单管理（查看订单、发货）🆕
 - [ ] 商家售后处理
 - [ ] 管理员登录
 - [ ] 管理员分类管理（树形结构）
+- [ ] 管理员商品管理（显示商家信息）🆕
 - [ ] 商品浏览（分类导航）
 - [ ] 商品详情（下架状态禁用购买、显示商家信息）
 - [ ] 购物车功能
@@ -937,6 +984,14 @@ npm run build  # 打包构建
 - 原因：商品未关联商家或查询逻辑错误
 - 解决：检查 `seller_id` 字段是否正确关联
 
+#### 商家无法发货
+- 原因：缺少商家订单管理页面或发货接口
+- 解决：已添加 SellerOrder.vue 和订单发货功能
+
+#### 前端请求方式不统一
+- 原因：部分页面使用原生 fetch，部分使用 http 插件
+- 解决：已统一所有页面使用 http 插件
+
 ---
 
 ## 🎯 十一、开发最佳实践
@@ -948,6 +1003,7 @@ npm run build  # 打包构建
 4. 使用 Lombok 简化代码
 5. 代码提交前格式化
 6. 使用常量类管理状态码和错误码
+7. **统一使用 http 插件进行 API 调用** 🆕
 
 ### 11.2 安全实践
 1. 敏感信息存储在 `.env` 文件
@@ -964,13 +1020,16 @@ npm run build  # 打包构建
 |------|------|
 | [database_init.sql](file:///c:/Users/Lenovo/Desktop/cxode/database_init.sql) | 数据库初始化脚本 |
 | [springboot/pom.xml](file:///c:/Users/Lenovo/Desktop/cxode/springboot/pom.xml) | 后端依赖配置 |
-| [springboot/src/main/java/com/mybatisplus/config/Constants.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/config/Constants.java) | 常量类 |
+| [springboot/src/main/java/com/mybatisplus/config/Constants.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/config/Constants.java) | 常量类（订单状态定义） |
 | [springboot/src/main/java/com/mybatisplus/config/JacksonConfig.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/config/JacksonConfig.java) | 时间格式配置 |
 | [springboot/src/main/java/com/mybatisplus/config/GlobalExceptionHandler.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/config/GlobalExceptionHandler.java) | 全局异常处理 |
 | [springboot/src/main/java/com/mybatisplus/interceptor/LoginInterceptor.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/interceptor/LoginInterceptor.java) | 登录拦截器 |
+| [springboot/src/main/java/com/mybatisplus/dto/GoodsWithSellerVO.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/dto/GoodsWithSellerVO.java) | 商品视图对象（含商家信息）🆕 |
 | [shop-aran/package.json](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/package.json) | 前端依赖配置 |
 | [shop-aran/src/router/index.js](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/router/index.js) | 路由配置 |
 | [shop-aran/src/plugins/index.js](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/plugins/index.js) | 前端插件入口 |
+| [shop-aran/src/views/seller/SellerOrder.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/seller/SellerOrder.vue) | 商家订单管理页面 🆕 |
+| [shop-aran/src/views/admin/GoodsManage.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/admin/GoodsManage.vue) | 管理员商品管理（含商家信息）🆕 |
 
 ---
 
@@ -990,11 +1049,14 @@ npm run build  # 打包构建
 - [ ] API 接口测试通过
 - [ ] 用户功能测试
 - [ ] 商家功能测试（只能看到自己的商品）
-- [ ] 管理员功能测试
+- [ ] 商家订单管理测试（发货功能）🆕
+- [ ] 管理员功能测试（商品显示商家信息）🆕
 - [ ] 售后功能测试
 - [ ] 商品下架功能测试
+- [ ] 订单状态流转测试（待支付→待发货→已发货→已完成）🆕
 - [ ] 后端接口拦截测试
 - [ ] 代码格式化通过
+- [ ] 前端统一使用 http 插件 🆕
 
 ### 部署前检查
 - [ ] 代码格式化完成
