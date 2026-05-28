@@ -17,38 +17,11 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.List;
+import java.util.Random;
 
 /**
  * 订单管理控制器
- *
- * <h3>功能说明</h3>
- * <ul>
- *   <li>用户订单管理（查看、取消、支付、确认收货）</li>
- *   <li>商家订单管理（查看、处理发货）</li>
- *   <li>管理员订单管理（查看所有订单、删除订单）</li>
- *   <li>订单项管理（查看订单商品明细）</li>
- * </ul>
- *
- * <h3>依赖服务</h3>
- * <ul>
- *   <li>{@link OrderService} - 订单业务逻辑</li>
- *   <li>{@link OrderItemService} - 订单项业务逻辑</li>
- *   <li>{@link GoodsService} - 商品业务逻辑（库存管理）</li>
- * </ul>
- *
- * <h3>订单状态流转</h3>
- * <pre>
- *   0: 待支付 ──────┐
- *      ↓ 支付      │
- *   1: 待发货 ──────┤─────┐
- *      ↓ 发货       │     │
- *   2: 已发货 ────────────┤─────┐
- *      ↓ 确认收货          │     │
- *   3: 已完成              │     │
- *                          │     │
- *   4: 已取消 ←────────────┘ ←───┘
- * </pre>
  *
  * @author Aran Shop Team
  * @version 1.0
@@ -146,16 +119,16 @@ public class OrderController {
      * @param dto 订单信息
      * @return 创建结果
      */
-    @PostMapping("/add")
+    @PostMapping("/create")
     @Transactional(rollbackFor = Exception.class)
-    public Result<Order> add(@RequestBody OrderDTO dto) {
+    public Result<Order> create(@RequestBody OrderDTO dto) {
         if (dto.getUserId() == null) {
             return Result.error("用户ID不能为空");
         }
         if (dto.getAddressId() == null) {
             return Result.error("收货地址不能为空");
         }
-        if (dto.getOrderItems() == null || dto.getOrderItems().isEmpty()) {
+        if (dto.getGoodsList() == null || dto.getGoodsList().isEmpty()) {
             return Result.error("订单商品不能为空");
         }
 
@@ -164,23 +137,16 @@ public class OrderController {
 
         // 计算总价
         BigDecimal totalPrice = BigDecimal.ZERO;
-        for (OrderItem item : dto.getOrderItems()) {
+        for (OrderDTO.GoodsItem item : dto.getGoodsList()) {
             Goods goods = goodsService.getById(item.getGoodsId());
             if (goods == null) {
                 return Result.error("商品不存在: " + item.getGoodsId());
             }
-            if (goods.getStock() < item.getNum()) {
+            if (goods.getStock() < item.getQuantity()) {
                 return Result.error("商品库存不足: " + goods.getGoodsName());
             }
 
-            // 扣减库存
-            goodsService.lambdaUpdate()
-                    .eq(Goods::getId, goods.getId())
-                    .set(Goods::getStock, goods.getStock() - item.getNum())
-                    .set(Goods::getSales, goods.getSales() + item.getNum())
-                    .update();
-
-            totalPrice = totalPrice.add(goods.getPrice().multiply(BigDecimal.valueOf(item.getNum())));
+            totalPrice = totalPrice.add(goods.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
         }
 
         // 创建订单
@@ -196,16 +162,25 @@ public class OrderController {
 
         orderService.save(order);
 
-        // 创建订单项
-        for (OrderItem item : dto.getOrderItems()) {
+        // 扣减库存并创建订单项
+        for (OrderDTO.GoodsItem item : dto.getGoodsList()) {
             Goods goods = goodsService.getById(item.getGoodsId());
+            
+            // 扣减库存
+            goodsService.lambdaUpdate()
+                    .eq(Goods::getId, goods.getId())
+                    .set(Goods::getStock, goods.getStock() - item.getQuantity())
+                    .set(Goods::getSales, goods.getSales() + item.getQuantity())
+                    .update();
+
+            // 创建订单项
             OrderItem orderItem = new OrderItem();
             orderItem.setOrderNo(orderNo);
             orderItem.setGoodsId(goods.getId());
             orderItem.setGoodsName(goods.getGoodsName());
             orderItem.setGoodsImg(goods.getGoodsImg());
             orderItem.setPrice(goods.getPrice());
-            orderItem.setNum(item.getNum());
+            orderItem.setNum(item.getQuantity());
             orderItem.setCreateTime(LocalDateTime.now());
 
             orderItemService.save(orderItem);
@@ -238,7 +213,7 @@ public class OrderController {
 
         orderService.updateById(order);
 
-        return Result.success("支付成功");
+        return Result.successMsg("支付成功");
     }
 
     /**
@@ -264,7 +239,7 @@ public class OrderController {
 
         orderService.updateById(order);
 
-        return Result.success("发货成功");
+        return Result.successMsg("发货成功");
     }
 
     /**
@@ -290,7 +265,7 @@ public class OrderController {
 
         orderService.updateById(order);
 
-        return Result.success("确认收货成功");
+        return Result.successMsg("确认收货成功");
     }
 
     /**
@@ -332,7 +307,7 @@ public class OrderController {
 
         orderService.updateById(order);
 
-        return Result.success("取消成功");
+        return Result.successMsg("取消成功");
     }
 
     /**
@@ -358,7 +333,7 @@ public class OrderController {
         // 删除订单
         orderService.removeById(id);
 
-        return Result.success();
+        return Result.successMsg("删除成功");
     }
 
     /**

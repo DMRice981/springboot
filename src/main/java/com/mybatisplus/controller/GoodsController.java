@@ -298,7 +298,7 @@ public class GoodsController {
                 .set(Goods::getStatus, status)
                 .set(Goods::getUpdateTime, LocalDateTime.now())
                 .update();
-        return Result.success();
+        return Result.successMsg("更新状态成功");
     }
 
     /**
@@ -327,7 +327,7 @@ public class GoodsController {
                 .set(Goods::getIsDelete, Constants.Status.DELETED)
                 .set(Goods::getUpdateTime, LocalDateTime.now())
                 .update();
-        return Result.success();
+        return Result.successMsg("删除成功");
     }
 
     /**
