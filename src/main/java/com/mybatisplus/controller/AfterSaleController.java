@@ -5,8 +5,10 @@ import com.mybatisplus.common.Result;
 import com.mybatisplus.dto.AfterSaleDTO;
 import com.mybatisplus.entity.AfterSale;
 import com.mybatisplus.entity.Goods;
+import com.mybatisplus.entity.Order;
 import com.mybatisplus.service.AfterSaleService;
 import com.mybatisplus.service.GoodsService;
+import com.mybatisplus.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,6 +23,7 @@ public class AfterSaleController {
 
     private final AfterSaleService afterSaleService;
     private final GoodsService goodsService;
+    private final OrderService orderService;
 
     @PostMapping("/add")
     public Result<AfterSale> add(@RequestBody AfterSale afterSale) {
@@ -35,6 +38,11 @@ public class AfterSaleController {
         }
         if (afterSale.getReason() == null || afterSale.getReason().trim().isEmpty()) {
             return Result.error("售后原因不能为空");
+        }
+        
+        Order order = orderService.getById(afterSale.getOrderId());
+        if (order != null) {
+            afterSale.setOrderNo(order.getOrderNo());
         }
         
         afterSale.setStatus(0);

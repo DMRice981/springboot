@@ -1,11 +1,15 @@
 package com.mybatisplus.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.mybatisplus.common.Result;
+import com.mybatisplus.entity.Order;
 import com.mybatisplus.entity.OrderItem;
 import com.mybatisplus.service.OrderItemService;
+import com.mybatisplus.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
 
 @RestController
@@ -14,13 +18,24 @@ import java.util.List;
 public class OrderItemController {
 
     private final OrderItemService orderItemService;
+    private final OrderService orderService;
 
     @GetMapping("/list")
-    public Result<List<OrderItem>> list(@RequestParam(required = false) String orderNo) {
+    public Result<List<OrderItem>> list(@RequestParam(required = false) String orderNo,
+                                        @RequestParam(required = false) Integer orderId) {
         if (orderNo != null) {
             return Result.success(orderItemService.lambdaQuery()
                     .eq(OrderItem::getOrderNo, orderNo)
                     .list());
+        }
+        if (orderId != null) {
+            Order order = orderService.getById(orderId);
+            if (order != null && order.getOrderNo() != null) {
+                return Result.success(orderItemService.lambdaQuery()
+                        .eq(OrderItem::getOrderNo, order.getOrderNo())
+                        .list());
+            }
+            return Result.success(Collections.emptyList());
         }
         return Result.success(orderItemService.list());
     }

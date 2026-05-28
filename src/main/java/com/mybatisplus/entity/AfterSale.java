@@ -18,6 +18,7 @@ public class AfterSale {
     @TableId(type = IdType.AUTO)
     private Integer id;
     private Integer orderId;
+    private String orderNo;
     private Integer userId;
     private Integer sellerId;
     private Integer goodsId;

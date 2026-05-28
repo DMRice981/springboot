@@ -16,8 +16,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.Map;
 import java.util.UUID;
 
@@ -81,7 +83,11 @@ public class OrderController {
         }
 
         Order order = new Order();
-        String orderNo = Constants.ORDER_PREFIX + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+        String timestamp = LocalDateTime.now().format(formatter);
+        Random random = new Random();
+        String randomStr = String.format("%04d", random.nextInt(10000));
+        String orderNo = Constants.ORDER_PREFIX + timestamp + randomStr;
         order.setOrderNo(orderNo);
         order.setUserId(userId);
         order.setAddressId(addressId);
@@ -125,12 +131,13 @@ public class OrderController {
             item.setGoodsImg(goods.getGoodsImg());
             item.setPrice(goods.getPrice());
             item.setNum(quantity);
-            item.setTotalPrice(goods.getPrice().multiply(BigDecimal.valueOf(quantity)));
             item.setCreateTime(LocalDateTime.now());
 
             orderItemService.save(item);
             items.add(item);
-            totalPrice = totalPrice.add(item.getTotalPrice());
+
+            BigDecimal itemTotal = goods.getPrice().multiply(BigDecimal.valueOf(quantity));
+            totalPrice = totalPrice.add(itemTotal);
 
             goods.setStock(goods.getStock() - quantity);
             goods.setSales(goods.getSales() + quantity);
@@ -167,7 +174,7 @@ public class OrderController {
         }
 
         order.setPayStatus(Constants.PayStatus.PAID);
-        order.setOrderStatus(Constants.OrderStatus.SHIPPED);
+        order.setOrderStatus(Constants.OrderStatus.PAID);
         order.setPayTime(LocalDateTime.now());
         orderService.updateById(order);
 
@@ -180,11 +187,11 @@ public class OrderController {
         if (order == null) {
             return Result.error("订单不存在");
         }
-        if (!order.getOrderStatus().equals(Constants.OrderStatus.SHIPPED)) {
+        if (!order.getOrderStatus().equals(Constants.OrderStatus.PAID)) {
             return Result.error("订单状态不正确，需为待发货状态");
         }
 
-        order.setOrderStatus(Constants.OrderStatus.DELIVERING);
+        order.setOrderStatus(Constants.OrderStatus.SHIPPED);
         order.setSendTime(LocalDateTime.now());
         orderService.updateById(order);
 
@@ -197,7 +204,7 @@ public class OrderController {
         if (order == null) {
             return Result.error("订单不存在");
         }
-        if (!order.getOrderStatus().equals(Constants.OrderStatus.DELIVERING)) {
+        if (!order.getOrderStatus().equals(Constants.OrderStatus.SHIPPED)) {
             return Result.error("订单状态不正确，需为已发货状态");
         }
 
@@ -240,6 +247,26 @@ public class OrderController {
                 }
             }
         }
+
+        return Result.success();
+    }
+
+    @DeleteMapping("/delete/{id}")
+    @Transactional
+    public Result<Void> delete(@PathVariable Integer id) {
+        Order order = orderService.getById(id);
+        if (order == null) {
+            return Result.error("订单不存在");
+        }
+
+        // 删除订单项
+        orderItemService.lambdaQuery()
+                .eq(OrderItem::getOrderNo, order.getOrderNo())
+                .list()
+                .forEach(item -> orderItemService.removeById(item.getId()));
+
+        // 删除订单
+        orderService.removeById(id);
 
         return Result.success();
     }

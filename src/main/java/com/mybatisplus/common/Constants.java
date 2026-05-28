@@ -22,11 +22,11 @@ public class Constants {
      * 订单状态
      */
     public static class OrderStatus {
-        public static final Integer PENDING = 0;
-        public static final Integer SHIPPED = 1;
-        public static final Integer DELIVERING = 2;
-        public static final Integer COMPLETED = 3;
-        public static final Integer CANCELLED = 4;
+        public static final Integer PENDING = 0;           // 待支付
+        public static final Integer PAID = 1;              // 已支付，待发货
+        public static final Integer SHIPPED = 2;           // 已发货，配送中
+        public static final Integer COMPLETED = 3;         // 已完成
+        public static final Integer CANCELLED = 4;         // 已取消
     }
 
     /**
