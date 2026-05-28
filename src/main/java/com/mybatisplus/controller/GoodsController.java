@@ -3,16 +3,22 @@ package com.mybatisplus.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.mybatisplus.common.Constants;
 import com.mybatisplus.common.Result;
+import com.mybatisplus.dto.GoodsWithSellerVO;
 import com.mybatisplus.entity.Goods;
 import com.mybatisplus.entity.Seller;
 import com.mybatisplus.service.GoodsService;
+import com.mybatisplus.service.SellerService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpSession;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/goods")
@@ -20,6 +26,7 @@ import java.util.List;
 public class GoodsController {
 
     private final GoodsService goodsService;
+    private final SellerService sellerService;
 
     @GetMapping("/list")
     public Result<List<Goods>> list(@RequestParam(required = false) Integer categoryId,
@@ -45,8 +52,8 @@ public class GoodsController {
     }
 
     @GetMapping("/list/all")
-    public Result<List<Goods>> listAll(@RequestParam(required = false) Integer sellerId,
-                                        @RequestParam(required = false) Integer status) {
+    public Result<List<GoodsWithSellerVO>> listAll(@RequestParam(required = false) Integer sellerId,
+                                                    @RequestParam(required = false) Integer status) {
         LambdaQueryWrapper<Goods> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Goods::getIsDelete, Constants.Status.NOT_DELETED);
         
@@ -59,7 +66,36 @@ public class GoodsController {
         }
         
         wrapper.orderByDesc(Goods::getCreateTime);
-        return Result.success(goodsService.list(wrapper));
+        List<Goods> goodsList = goodsService.list(wrapper);
+        
+        // 获取所有相关的商家信息
+        List<Integer> sellerIds = goodsList.stream()
+                .map(Goods::getSellerId)
+                .filter(id -> id != null)
+                .distinct()
+                .collect(Collectors.toList());
+        
+        Map<Integer, Seller> sellerMap = sellerIds.isEmpty() ? 
+                Map.of() : 
+                sellerService.listByIds(sellerIds).stream()
+                        .collect(Collectors.toMap(Seller::getId, s -> s));
+        
+        // 转换为 VO
+        List<GoodsWithSellerVO> voList = new ArrayList<>();
+        for (Goods goods : goodsList) {
+            GoodsWithSellerVO vo = new GoodsWithSellerVO();
+            BeanUtils.copyProperties(goods, vo);
+            
+            if (goods.getSellerId() != null && sellerMap.containsKey(goods.getSellerId())) {
+                Seller seller = sellerMap.get(goods.getSellerId());
+                vo.setSellerName(seller.getUsername());
+                vo.setShopName(seller.getShopName());
+            }
+            
+            voList.add(vo);
+        }
+        
+        return Result.success(voList);
     }
 
     @GetMapping("/get/{id}")
@@ -88,10 +124,6 @@ public class GoodsController {
     @PostMapping("/add")
     public Result<Goods> add(@RequestBody Goods goodsFromFront, HttpSession session) {
         Seller seller = (Seller) session.getAttribute("seller");
-        if (seller == null) {
-            return Result.error("请先登录商家账号");
-        }
-        
         Goods goods = new Goods();
         goods.setCategoryId(goodsFromFront.getCategoryId());
         goods.setGoodsName(goodsFromFront.getGoodsName());
@@ -102,11 +134,17 @@ public class GoodsController {
         goods.setSales(0);
         goods.setGoodsImg(goodsFromFront.getGoodsImg());
         goods.setGoodsDesc(goodsFromFront.getGoodsDesc());
-        goods.setSellerId(seller.getId());
-        goods.setStatus(Constants.GoodsStatus.ON_SHELF);
+        goods.setStatus(goodsFromFront.getStatus() != null ? goodsFromFront.getStatus() : Constants.GoodsStatus.ON_SHELF);
         goods.setIsDelete(Constants.Status.NOT_DELETED);
         goods.setCreateTime(LocalDateTime.now());
         goods.setUpdateTime(LocalDateTime.now());
+        
+        // 如果有商家登录，使用登录商家的ID；否则使用前端传过来的sellerId
+        if (seller != null) {
+            goods.setSellerId(seller.getId());
+        } else {
+            goods.setSellerId(goodsFromFront.getSellerId());
+        }
         
         goodsService.save(goods);
         return Result.success("添加成功", goods);
@@ -118,17 +156,14 @@ public class GoodsController {
             return Result.error("商品ID不能为空");
         }
         
-        Seller seller = (Seller) session.getAttribute("seller");
-        if (seller == null) {
-            return Result.error("请先登录商家账号");
-        }
-        
         Goods goods = goodsService.getById(goodsFromFront.getId());
         if (goods == null) {
             return Result.error("商品不存在");
         }
         
-        if (!goods.getSellerId().equals(seller.getId())) {
+        Seller seller = (Seller) session.getAttribute("seller");
+        // 如果是商家登录，检查是否有权限
+        if (seller != null && !goods.getSellerId().equals(seller.getId())) {
             return Result.error("您无权操作该商品");
         }
         
@@ -139,6 +174,13 @@ public class GoodsController {
         goods.setStock(goodsFromFront.getStock());
         goods.setGoodsImg(goodsFromFront.getGoodsImg());
         goods.setGoodsDesc(goodsFromFront.getGoodsDesc());
+        goods.setStatus(goodsFromFront.getStatus() != null ? goodsFromFront.getStatus() : goods.getStatus());
+        
+        // 管理员可以修改商家
+        if (seller == null && goodsFromFront.getSellerId() != null) {
+            goods.setSellerId(goodsFromFront.getSellerId());
+        }
+        
         goods.setUpdateTime(LocalDateTime.now());
         
         goodsService.updateById(goods);
@@ -178,17 +220,14 @@ public class GoodsController {
 
     @DeleteMapping("/delete/{id}")
     public Result<Void> delete(@PathVariable Integer id, HttpSession session) {
-        Seller seller = (Seller) session.getAttribute("seller");
-        if (seller == null) {
-            return Result.error("请先登录商家账号");
-        }
-        
         Goods goods = goodsService.getById(id);
         if (goods == null) {
             return Result.error("商品不存在");
         }
         
-        if (!goods.getSellerId().equals(seller.getId())) {
+        Seller seller = (Seller) session.getAttribute("seller");
+        // 如果是商家登录，检查是否有权限
+        if (seller != null && !goods.getSellerId().equals(seller.getId())) {
             return Result.error("您无权操作该商品");
         }
         
