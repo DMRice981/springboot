@@ -855,6 +855,63 @@ npm run dev
 - 前端页面：[AfterSale.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/AfterSale.vue)
 - 功能：用户申请售后、查看售后记录
 
+### 6.7 API 接口参考
+
+#### 订单接口
+
+##### 创建订单 `POST /order/create`
+
+**请求格式**：
+```json
+{
+  "userId": 1,
+  "addressId": 1,
+  "goodsList": [
+    {
+      "goodsId": 1,
+      "quantity": 2
+    }
+  ]
+}
+```
+
+**响应格式**：
+```json
+{
+  "code": 200,
+  "msg": "创建成功",
+  "data": {
+    "id": 1,
+    "orderNo": "20240101120000123456",
+    "userId": 1,
+    "addressId": 1,
+    "totalPrice": 199.98,
+    "payPrice": 199.98,
+    "payStatus": 0,
+    "orderStatus": 0,
+    "createTime": "2024-01-01 12:00:00"
+  }
+}
+```
+
+**OrderDTO 结构**：
+```java
+public class OrderDTO {
+    private Integer userId;           // 用户ID
+    private Integer addressId;         // 收货地址ID
+    private List<GoodsItem> goodsList; // 商品列表
+    
+    // 用于订单详情响应
+    private Order order;              // 订单信息
+    private List<OrderItem> orderItems; // 订单项列表
+    
+    public static class GoodsItem {
+        private Integer goodsId;      // 商品ID
+        private Integer quantity;     // 购买数量
+    }
+}
+```
+
 ---
 
 ## 🔧 七、开发流程
