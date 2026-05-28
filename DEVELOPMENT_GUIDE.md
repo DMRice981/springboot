@@ -24,7 +24,7 @@
 
 Aran Shop 是一个基于 Spring Boot + Vue 3 的全栈电商系统，包含三个角色：
 - **用户**：浏览商品、下单购物、申请售后
-- **商家**：管理商品、处理售后
+- **商家**：管理商品（仅能查看自己的商品）、处理售后
 - **管理员**：管理平台商品、用户、订单等
 
 ### 1.2 技术栈
@@ -53,31 +53,46 @@ cxode/
 │   │   ├── main/
 │   │   │   ├── java/
 │   │   │   │   └── com/mybatisplus/
-│   │   │   │       ├── config/       # 配置类（JacksonConfig, DotenvConfig）
-│   │   │   │       ├── controller/   # 控制器（构造器注入）
-│   │   │   │       ├── entity/       # 实体类
-│   │   │   │       ├── mapper/       # 数据访问层
-│   │   │   │       ├── service/      # 服务层
-│   │   │   │       │   └── impl/     # 服务实现
-│   │   │   │       ├── dto/          # 数据传输对象
+│   │   │   │       ├── config/           # 配置类
+│   │   │   │       │   ├── CorsConfig.java
+│   │   │   │       │   ├── DotenvConfig.java
+│   │   │   │       │   ├── JacksonConfig.java
+│   │   │   │       │   ├── GlobalExceptionHandler.java
+│   │   │   │       │   └── WebMvcConfig.java
+│   │   │   │       ├── controller/       # 控制器（构造器注入）
+│   │   │   │       ├── entity/           # 实体类
+│   │   │   │       ├── mapper/           # 数据访问层
+│   │   │   │       ├── service/          # 服务层
+│   │   │   │       │   └── impl/         # 服务实现
+│   │   │   │       ├── dto/              # 数据传输对象
+│   │   │   │       ├── interceptor/      # 拦截器
+│   │   │   │       │   └── LoginInterceptor.java
 │   │   │   │       └── SpringbootApplication.java
 │   │   │   └── resources/
-│   │   │       └── application.yml   # 配置文件
+│   │   │       └── application.yml       # 配置文件
 │   │   └── test/
 │   ├── .env                      # 环境变量（不提交）
 │   ├── .env.example              # 环境变量模板
 │   └── pom.xml
-│
+
 ├── shop-aran/                # 前端项目
 │   ├── src/
 │   │   ├── api/               # API 接口
 │   │   ├── assets/            # 资源文件
-│   │   ├── components/       # 组件
-│   │   ├── router/          # 路由配置
-│   │   ├── utils/           # 工具类（request.js）
-│   │   ├── views/          # 页面
-│   │   │   ├── admin/      # 管理员页面
-│   │   │   └── seller/     # 商家页面
+│   │   ├── plugins/           # 插件系统
+│   │   │   ├── index.js
+│   │   │   ├── progress.js    # 进度条插件
+│   │   │   ├── element.js     # Element Plus 增强
+│   │   │   ├── auth.js        # 认证插件
+│   │   │   └── request.js     # HTTP 请求插件
+│   │   ├── router/            # 路由配置（含守卫）
+│   │   ├── utils/             # 工具类
+│   │   │   ├── format.js      # 格式化工具
+│   │   │   ├── debounce.js    # 防抖节流
+│   │   │   └── valid.js       # 验证工具
+│   │   ├── views/             # 页面
+│   │   │   ├── admin/         # 管理员页面
+│   │   │   └── seller/        # 商家页面
 │   │   ├── App.vue
 │   │   └── main.js
 │   ├── public/
@@ -85,7 +100,7 @@ cxode/
 │   ├── .env.example              # 环境变量模板
 │   ├── vite.config.js
 │   └── package.json
-│
+
 └── database_init.sql           # 数据库初始化脚本（唯一）
 ```
 
@@ -96,10 +111,15 @@ cxode/
 | 构造器注入 | 所有 Controller 从 `@Autowired` 改为 `@RequiredArgsConstructor` | ✅ 已完成 |
 | 常量类 | 创建 Constants.java 统一管理状态码、错误码等 | ✅ 已完成 |
 | 时间格式统一 | 创建 JacksonConfig.java，统一时间格式为 `yyyy-MM-dd HH:mm:ss` | ✅ 已完成 |
+| 全局异常处理 | 创建 GlobalExceptionHandler.java 统一处理异常 | ✅ 已完成 |
+| 登录拦截器 | 创建 LoginInterceptor.java 保护后端接口 | ✅ 已完成 |
 | 数据库文件清理 | 删除冗余的 init-db.sql，保留 database_init.sql | ✅ 已完成 |
 | 分类功能完善 | 支持树形分类结构（pid 字段） | ✅ 已完成 |
 | 售后功能完善 | 完整的售后申请和处理流程 | ✅ 已完成 |
 | 商品下架功能 | 下架商品禁用购买按钮 | ✅ 已完成 |
+| 商家商品隔离 | 商家只能查看和管理自己的商品 | ✅ 已完成 |
+| 前端插件系统 | 添加进度条、认证、请求等插件 | ✅ 已完成 |
+| 路由进度条 | 添加页面切换进度条动画 | ✅ 已完成 |
 | 代码格式化 | 标准化代码风格 | ✅ 已完成 |
 
 ---
@@ -361,6 +381,7 @@ CREATE TABLE after_sale (
                      │    goods    │◄────│   category  │
                      └─────────────┘     └─────────────┘
                             │ 1:N
+                            │ N:1
                             ▼
                      ┌─────────────┐
                      │  goods_img   │
@@ -393,8 +414,8 @@ CREATE TABLE after_sale (
 - 管理员：admin / 123456
 - 商家：seller1 / 123456
 - 用户：user1 / 123456
-- 分类：电子产品、服装、食品、家居
-- 商品：4个测试商品
+- 分类：电子产品、服装、食品、家居（支持树形结构）
+- 商品：4个测试商品（关联商家）
 - 轮播图：2张测试轮播图
 - 收货地址：1条测试地址
 
@@ -407,18 +428,23 @@ CREATE TABLE after_sale (
 ```
 springboot/src/main/java/com/mybatisplus/
 ├── config/
-│   ├── DotenvConfig.java          # 环境变量配置
-│   ├── JacksonConfig.java         # 统一时间格式配置
-│   └── Constants.java             # 常量类（状态码、错误码等）
-├── controller/                  # 控制器层（构造器注入）
-├── entity/                    # 实体类（含 @JsonFormat 注解）
-├── mapper/                   # 数据访问层
-├── service/                  # 服务层
-│   └── impl/               # 服务实现
-├── dto/                     # 数据传输对象
+│   ├── CorsConfig.java              # 跨域配置
+│   ├── DotenvConfig.java            # 环境变量配置
+│   ├── JacksonConfig.java           # 统一时间格式配置
+│   ├── GlobalExceptionHandler.java  # 全局异常处理
+│   ├── WebMvcConfig.java            # Web MVC配置（含拦截器注册）
+│   └── Constants.java               # 常量类
+├── controller/                      # 控制器层（构造器注入）
+├── entity/                          # 实体类
+├── mapper/                          # 数据访问层
+├── service/                         # 服务层
+│   └── impl/                        # 服务实现
+├── dto/                             # 数据传输对象
 │   ├── OrderDTO.java
 │   └── AfterSaleDTO.java
-└── SpringbootApplication.java  # 启动类
+├── interceptor/                     # 拦截器
+│   └── LoginInterceptor.java        # 登录拦截器
+└── SpringbootApplication.java       # 启动类
 ```
 
 ### 4.2 配置环境变量
@@ -492,6 +518,29 @@ public class Constants {
 }
 ```
 
+#### 全局异常处理
+
+通过 `GlobalExceptionHandler.java` 统一处理各类异常：
+
+```java
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public Result<Void> handleValidationException(...) { ... }
+    
+    @ExceptionHandler(NullPointerException.class)
+    public Result<Void> handleNullPointerException(...) { ... }
+    // ...
+}
+```
+
+#### 登录拦截器
+
+通过 `LoginInterceptor.java` 保护后端接口：
+
+- 公开接口：登录、注册、商品列表、商品详情、轮播图、分类列表、商家信息
+- 需要登录的接口：其他所有接口
+
 ### 4.4 后端启动
 
 #### 方式一：Maven 命令
@@ -533,12 +582,20 @@ shop-aran/src/
 │   ├── user.js
 │   └── userAddress.js
 ├── assets/            # 资源文件
-├── components/       # 组件
-├── router/          # 路由配置
-├── utils/           # 工具类
-│   └── request.js   # Axios 封装（含拦截器）
-├── views/          # 页面
-│   ├── admin/      # 管理员页面
+├── plugins/           # 插件系统
+│   ├── index.js       # 插件入口
+│   ├── progress.js    # 进度条插件
+│   ├── element.js     # Element Plus 增强
+│   ├── auth.js        # 认证插件
+│   └── request.js     # HTTP 请求插件
+├── router/            # 路由配置
+│   └── index.js       # 路由配置（含守卫和进度条）
+├── utils/             # 工具类
+│   ├── format.js      # 格式化工具
+│   ├── debounce.js    # 防抖节流
+│   └── valid.js       # 验证工具
+├── views/             # 页面
+│   ├── admin/         # 管理员页面
 │   │   ├── AdminIndex.vue
 │   │   ├── AdminLogin.vue
 │   │   ├── BannerManage.vue
@@ -546,9 +603,9 @@ shop-aran/src/
 │   │   ├── GoodsManage.vue      # 商品管理（含分类下拉）
 │   │   ├── OrderManage.vue
 │   │   └── UserManage.vue
-│   ├── seller/     # 商家页面
+│   ├── seller/        # 商家页面
 │   │   ├── SellerAfterSale.vue  # 售后处理
-│   │   ├── SellerGoods.vue      # 商品管理
+│   │   ├── SellerGoods.vue      # 商品管理（仅显示自己的商品）
 │   │   ├── SellerIndex.vue
 │   │   ├── SellerLogin.vue
 │   │   └── SellerRegister.vue
@@ -563,8 +620,8 @@ shop-aran/src/
 │   ├── Order.vue                # 订单管理
 │   ├── Register.vue
 │   └── User.vue
-├── App.vue        # 根组件
-└── main.js         # 入口文件
+├── App.vue            # 根组件（含全局样式）
+└── main.js            # 入口文件
 ```
 
 ### 5.2 配置环境变量
@@ -589,27 +646,93 @@ VITE_API_PREFIX=/api
 VITE_REQUEST_TIMEOUT=5000
 ```
 
-### 5.3 代码格式化
+### 5.3 前端插件系统
+
+#### 插件列表
+
+| 插件 | 说明 | 文件 |
+|------|------|------|
+| progress | 页面加载进度条 | [progress.js](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/plugins/progress.js) |
+| element | Element Plus 增强（消息提示、确认框、通知） | [element.js](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/plugins/element.js) |
+| auth | 认证管理（用户/管理员/商家） | [auth.js](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/plugins/auth.js) |
+| request | HTTP 请求封装 | [request.js](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/plugins/request.js) |
+
+#### 插件使用示例
+
+```vue
+<script setup>
+import { inject } from 'vue'
+
+const msg = inject('msg')
+const http = inject('http')
+const auth = inject('auth')
+
+// 消息提示
+msg.success('操作成功')
+msg.error('操作失败')
+
+// HTTP 请求
+const result = await http.get('/goods/list')
+
+// 认证管理
+auth.setUser(user)
+auth.getUser()
+auth.logout()
+</script>
+```
+
+### 5.4 工具函数
+
+#### 格式化工具
+
+```javascript
+import { formatPrice, formatTime, formatTimeAgo, formatSales } from '@/utils/format'
+
+formatPrice(99.9)      // "¥99.90"
+formatTime(new Date())  // "2024-01-01 12:00:00"
+formatTimeAgo(date)     // "1分钟前"
+formatSales(15000)     // "1.5万+"
+```
+
+#### 防抖节流
+
+```javascript
+import { debounce, throttle } from '@/utils/debounce'
+
+const handleSearch = debounce((keyword) => { ... }, 300)
+const handleScroll = throttle(() => { ... }, 200)
+```
+
+#### 验证工具
+
+```javascript
+import { isPhone, isEmail, isPassword, isNotEmpty } from '@/utils/valid'
+
+isPhone('13800138000')   // true
+isEmail('test@example.com') // true
+```
+
+### 5.5 代码格式化
 
 ```bash
 cd shop-aran
 npm run format
 ```
 
-### 5.4 安装依赖
+### 5.6 安装依赖
 
 ```bash
 cd shop-aran
 npm install
 ```
 
-### 5.5 启动前端
+### 5.7 启动前端
 
 ```bash
 npm run dev
 ```
 
-### 5.6 访问前端
+### 5.8 访问前端
 
 浏览器打开 http://localhost:5173
 
@@ -640,7 +763,7 @@ npm run dev
 
 #### 商品管理
 - 前端页面：[SellerGoods.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/seller/SellerGoods.vue)
-- 功能：添加、编辑、上架/下架商品
+- 功能：添加、编辑、上架/下架商品（仅显示商家自己的商品）
 
 #### 售后处理
 - 前端页面：[SellerAfterSale.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/seller/SellerAfterSale.vue)
@@ -667,7 +790,7 @@ npm run dev
 
 #### 商品详情
 - 前端页面：[GoodsDetail.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/GoodsDetail.vue)
-- 功能：下架商品禁用购买按钮
+- 功能：下架商品禁用购买按钮，显示商家信息
 
 #### 购物车
 - 前端页面：[Cart.vue](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/views/Cart.vue)
@@ -701,13 +824,15 @@ npm run dev
 4. **创建 Service 实现** → `service/impl/` 目录
 5. **创建 Controller** → `controller/` 目录（使用构造器注入）
 6. **创建 DTO（如需要）** → `dto/` 目录
+7. **添加拦截规则（如需要）** → `interceptor/LoginInterceptor.java`
 
 #### 前端开发流程
 
 1. **创建 API 文件** → `api/` 目录
 2. **创建页面组件** → `views/` 目录
 3. **配置路由** → `router/index.js`
-4. **格式化代码** → `npm run format`
+4. **使用插件** → 通过 `inject` 使用插件系统
+5. **格式化代码** → `npm run format`
 
 ### 7.2 代码格式化
 
@@ -733,16 +858,17 @@ npm run format
 - [ ] 用户注册登录
 - [ ] 用户收货地址管理
 - [ ] 商家注册登录
-- [ ] 商家商品管理（添加、编辑、下架）
+- [ ] 商家商品管理（添加、编辑、下架、只能看到自己的商品）
 - [ ] 商家售后处理
 - [ ] 管理员登录
 - [ ] 管理员分类管理（树形结构）
 - [ ] 商品浏览（分类导航）
-- [ ] 商品详情（下架状态禁用购买）
+- [ ] 商品详情（下架状态禁用购买、显示商家信息）
 - [ ] 购物车功能
 - [ ] 下单购买
 - [ ] 订单管理
 - [ ] 售后申请和处理
+- [ ] 后端接口拦截保护
 
 ### 8.3 后端打包
 
@@ -803,6 +929,14 @@ npm run build  # 打包构建
 - 原因：API 调用缺少 `userId` 参数
 - 解决：已修复 API 调用
 
+#### 管理员登录 500 错误
+- 原因：数据库中存在多条匹配的管理员记录
+- 解决：确保数据库中管理员用户名唯一
+
+#### 商家看不到自己的商品
+- 原因：商品未关联商家或查询逻辑错误
+- 解决：检查 `seller_id` 字段是否正确关联
+
 ---
 
 ## 🎯 十一、开发最佳实践
@@ -820,6 +954,7 @@ npm run build  # 打包构建
 2. `.env` 文件添加到 `.gitignore`
 3. 只提交 `.env.example` 作为模板
 4. 不同环境使用不同的配置
+5. 使用拦截器保护后端接口
 
 ---
 
@@ -831,8 +966,11 @@ npm run build  # 打包构建
 | [springboot/pom.xml](file:///c:/Users/Lenovo/Desktop/cxode/springboot/pom.xml) | 后端依赖配置 |
 | [springboot/src/main/java/com/mybatisplus/config/Constants.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/config/Constants.java) | 常量类 |
 | [springboot/src/main/java/com/mybatisplus/config/JacksonConfig.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/config/JacksonConfig.java) | 时间格式配置 |
+| [springboot/src/main/java/com/mybatisplus/config/GlobalExceptionHandler.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/config/GlobalExceptionHandler.java) | 全局异常处理 |
+| [springboot/src/main/java/com/mybatisplus/interceptor/LoginInterceptor.java](file:///c:/Users/Lenovo/Desktop/cxode/springboot/src/main/java/com/mybatisplus/interceptor/LoginInterceptor.java) | 登录拦截器 |
 | [shop-aran/package.json](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/package.json) | 前端依赖配置 |
 | [shop-aran/src/router/index.js](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/router/index.js) | 路由配置 |
+| [shop-aran/src/plugins/index.js](file:///c:/Users/Lenovo/Desktop/cxode/shop-aran/src/plugins/index.js) | 前端插件入口 |
 
 ---
 
@@ -851,10 +989,11 @@ npm run build  # 打包构建
 - [ ] 前端启动成功
 - [ ] API 接口测试通过
 - [ ] 用户功能测试
-- [ ] 商家功能测试
+- [ ] 商家功能测试（只能看到自己的商品）
 - [ ] 管理员功能测试
 - [ ] 售后功能测试
 - [ ] 商品下架功能测试
+- [ ] 后端接口拦截测试
 - [ ] 代码格式化通过
 
 ### 部署前检查
