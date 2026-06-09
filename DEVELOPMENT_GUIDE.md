@@ -857,6 +857,47 @@ npm run dev
 
 ### 6.7 API 接口参考
 
+#### 分页和搜索接口
+
+所有管理列表页面均支持分页和搜索功能，通过以下参数控制：
+
+**请求参数**：
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| pageNum | Integer | 否 | 页码，从1开始，默认1 |
+| pageSize | Integer | 否 | 每页条数，默认10 |
+| keyword | String | 否 | 关键词搜索 |
+| status | Integer | 否 | 状态筛选 |
+| sellerId | Integer | 否 | 商家ID（商家相关接口） |
+
+**响应格式**：
+```json
+{
+  "code": 200,
+  "msg": "success",
+  "data": {
+    "total": 100,
+    "pageNum": 1,
+    "pageSize": 10,
+    "totalPages": 10,
+    "list": [...]
+  }
+}
+```
+
+#### 分页接口列表
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/goods/list/paged` | GET | 商品列表（公开，按分类和关键词筛选） |
+| `/goods/list/all/paged` | GET | 商品列表（管理，含商家信息） |
+| `/goods/my/paged` | GET | 商家自己的商品列表 |
+| `/order/list/paged` | GET | 用户订单列表 |
+| `/order/list/all/paged` | GET | 订单列表（管理） |
+| `/user/list/paged` | GET | 用户列表（管理） |
+| `/seller/list/paged` | GET | 商家列表（管理） |
+| `/after-sale/list/paged` | GET | 售后列表 |
+
 #### 订单接口
 
 ##### 创建订单 `POST /order/create`

@@ -1,8 +1,11 @@
 package com.mybatisplus.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mybatisplus.common.Constants;
 import com.mybatisplus.common.Result;
+import com.mybatisplus.dto.PageResult;
 import com.mybatisplus.entity.User;
 import com.mybatisplus.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -64,6 +67,50 @@ public class UserController {
                 .orderByDesc(User::getCreateTime)
                 .list();
         return Result.success(list);
+    }
+
+    /**
+     * 分页获取用户列表
+     *
+     * @param pageNum 页码（默认1）
+     * @param pageSize 每页条数（默认10）
+     * @param keyword 关键词搜索（可选，匹配用户名或手机号）
+     * @param status 用户状态筛选（可选，1正常 0禁用）
+     * @return 分页后的用户列表
+     */
+    @GetMapping("/list/paged")
+    public Result<PageResult<User>> listPaged(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer status) {
+        
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(User::getIsDelete, Constants.Status.NOT_DELETED);
+        
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.and(w -> w.like(User::getUsername, keyword)
+                              .or()
+                              .like(User::getPhone, keyword));
+        }
+        
+        if (status != null) {
+            wrapper.eq(User::getStatus, status);
+        }
+        
+        wrapper.orderByDesc(User::getCreateTime);
+        
+        Page<User> page = new Page<>(pageNum, pageSize);
+        IPage<User> pageResult = userService.page(page, wrapper);
+        
+        PageResult<User> result = new PageResult<>(
+                pageResult.getTotal(),
+                pageNum,
+                pageSize,
+                pageResult.getRecords()
+        );
+        
+        return Result.success(result);
     }
 
     @GetMapping("/get/{id}")

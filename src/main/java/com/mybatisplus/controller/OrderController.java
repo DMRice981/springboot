@@ -1,9 +1,12 @@
 package com.mybatisplus.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mybatisplus.common.Constants;
 import com.mybatisplus.common.Result;
 import com.mybatisplus.dto.OrderDTO;
+import com.mybatisplus.dto.PageResult;
 import com.mybatisplus.entity.Goods;
 import com.mybatisplus.entity.Order;
 import com.mybatisplus.entity.OrderItem;
@@ -17,8 +20,11 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 订单管理控制器
@@ -86,6 +92,111 @@ public class OrderController {
         }
 
         return Result.success(orders);
+    }
+
+    /**
+     * 分页获取用户订单列表
+     *
+     * @param pageNum 页码（默认1）
+     * @param pageSize 每页条数（默认10）
+     * @param userId 用户ID
+     * @param status 订单状态（可选，用于筛选）
+     * @return 分页后的订单列表
+     */
+    @GetMapping("/list/paged")
+    public Result<PageResult<Order>> listPaged(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam Integer userId,
+            @RequestParam(required = false) Integer status) {
+        
+        LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Order::getUserId, userId);
+        
+        if (status != null) {
+            wrapper.eq(Order::getOrderStatus, status);
+        }
+        
+        wrapper.orderByDesc(Order::getCreateTime);
+        
+        Page<Order> page = new Page<>(pageNum, pageSize);
+        IPage<Order> pageResult = orderService.page(page, wrapper);
+        
+        PageResult<Order> result = new PageResult<>(
+                pageResult.getTotal(),
+                pageNum,
+                pageSize,
+                pageResult.getRecords()
+        );
+        
+        return Result.success(result);
+    }
+
+    /**
+     * 分页获取所有订单列表（商家/管理员）
+     *
+     * @param pageNum 页码（默认1）
+     * @param pageSize 每页条数（默认10）
+     * @param sellerId 商家ID（可选，用于商家查看自己的订单）
+     * @param status 订单状态（可选，用于筛选）
+     * @param keyword 订单号关键词搜索（可选）
+     * @return 分页后的订单列表
+     */
+    @GetMapping("/list/all/paged")
+    public Result<PageResult<Order>> listAllPaged(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(required = false) Integer sellerId,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String keyword) {
+        
+        LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<>();
+
+        if (status != null) {
+            wrapper.eq(Order::getOrderStatus, status);
+        }
+        
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.like(Order::getOrderNo, keyword);
+        }
+
+        wrapper.orderByDesc(Order::getCreateTime);
+        
+        Page<Order> page = new Page<>(pageNum, pageSize);
+        IPage<Order> pageResult = orderService.page(page, wrapper);
+        
+        // 如果是商家，需要过滤只显示自己的订单
+        List<Order> orders = pageResult.getRecords();
+        if (sellerId != null) {
+            // 获取商家所有的商品ID
+            List<Goods> sellerGoods = goodsService.lambdaQuery()
+                    .eq(Goods::getSellerId, sellerId)
+                    .list();
+            Set<Integer> sellerGoodsIds = sellerGoods.stream()
+                    .map(Goods::getId)
+                    .collect(Collectors.toSet());
+            
+            // 获取商家商品对应的所有订单号
+            List<OrderItem> orderItems = orderItemService.list();
+            Set<String> sellerOrderNos = orderItems.stream()
+                    .filter(item -> sellerGoodsIds.contains(item.getGoodsId()))
+                    .map(OrderItem::getOrderNo)
+                    .collect(Collectors.toSet());
+            
+            // 过滤只显示商家的订单
+            orders = orders.stream()
+                    .filter(order -> sellerOrderNos.contains(order.getOrderNo()))
+                    .collect(Collectors.toList());
+        }
+        
+        PageResult<Order> result = new PageResult<>(
+                pageResult.getTotal(),
+                pageNum,
+                pageSize,
+                orders
+        );
+        
+        return Result.success(result);
     }
 
     /**

@@ -1,7 +1,10 @@
 package com.mybatisplus.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mybatisplus.common.Result;
+import com.mybatisplus.dto.PageResult;
 import com.mybatisplus.entity.Seller;
 import com.mybatisplus.service.SellerService;
 import lombok.RequiredArgsConstructor;
@@ -65,6 +68,43 @@ public class SellerController {
     @GetMapping("/list")
     public Result<List<Seller>> list() {
         return Result.success(sellerService.list());
+    }
+
+    /**
+     * 分页获取商家列表
+     *
+     * @param pageNum 页码（默认1）
+     * @param pageSize 每页条数（默认10）
+     * @param keyword 关键词搜索（可选，匹配商家名称或店铺名称）
+     * @return 分页后的商家列表
+     */
+    @GetMapping("/list/paged")
+    public Result<PageResult<Seller>> listPaged(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(required = false) String keyword) {
+        
+        LambdaQueryWrapper<Seller> wrapper = new LambdaQueryWrapper<>();
+        
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.and(w -> w.like(Seller::getUsername, keyword)
+                              .or()
+                              .like(Seller::getShopName, keyword));
+        }
+        
+        wrapper.orderByDesc(Seller::getCreateTime);
+        
+        Page<Seller> page = new Page<>(pageNum, pageSize);
+        IPage<Seller> pageResult = sellerService.page(page, wrapper);
+        
+        PageResult<Seller> result = new PageResult<>(
+                pageResult.getTotal(),
+                pageNum,
+                pageSize,
+                pageResult.getRecords()
+        );
+        
+        return Result.success(result);
     }
 
     @GetMapping("/get/{id}")

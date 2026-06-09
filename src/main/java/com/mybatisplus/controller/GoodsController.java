@@ -1,9 +1,13 @@
 package com.mybatisplus.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mybatisplus.common.Constants;
 import com.mybatisplus.common.Result;
 import com.mybatisplus.dto.GoodsWithSellerVO;
+import com.mybatisplus.dto.PageRequest;
+import com.mybatisplus.dto.PageResult;
 import com.mybatisplus.entity.Goods;
 import com.mybatisplus.entity.Seller;
 import com.mybatisplus.service.GoodsService;
@@ -347,5 +351,178 @@ public class GoodsController {
                 .orderByDesc(Goods::getSales)
                 .list();
         return Result.success(list);
+    }
+
+    /**
+     * 分页获取商品列表（公开接口）
+     * 支持按分类和关键词筛选，返回在架商品
+     *
+     * @param pageNum 页码（默认1）
+     * @param pageSize 每页条数（默认10）
+     * @param categoryId 分类ID（可选）
+     * @param keyword 关键词搜索（可选，匹配商品名称或描述）
+     * @return 分页后的商品列表
+     */
+    @GetMapping("/list/paged")
+    public Result<PageResult<Goods>> listPaged(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(required = false) Integer categoryId,
+            @RequestParam(required = false) String keyword) {
+        
+        LambdaQueryWrapper<Goods> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Goods::getIsDelete, Constants.Status.NOT_DELETED)
+               .eq(Goods::getStatus, Constants.GoodsStatus.ON_SHELF);
+        
+        if (categoryId != null) {
+            wrapper.eq(Goods::getCategoryId, categoryId);
+        }
+        
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.and(w -> w.like(Goods::getGoodsName, keyword)
+                               .or()
+                               .like(Goods::getGoodsDesc, keyword));
+        }
+        
+        wrapper.orderByDesc(Goods::getSales)
+               .orderByDesc(Goods::getCreateTime);
+        
+        Page<Goods> page = new Page<>(pageNum, pageSize);
+        IPage<Goods> pageResult = goodsService.page(page, wrapper);
+        
+        PageResult<Goods> result = new PageResult<>(
+                pageResult.getTotal(),
+                pageNum,
+                pageSize,
+                pageResult.getRecords()
+        );
+        
+        return Result.success(result);
+    }
+
+    /**
+     * 分页获取所有商品列表（管理员/商家接口）
+     * 支持按商家、状态和关键词筛选
+     *
+     * @param pageNum 页码（默认1）
+     * @param pageSize 每页条数（默认10）
+     * @param sellerId 商家ID（可选，用于商家查看自己的商品）
+     * @param status 商品状态（可选，1上架 0下架）
+     * @param keyword 关键词搜索（可选）
+     * @return 分页后的商品列表（包含商家信息）
+     */
+    @GetMapping("/list/all/paged")
+    public Result<PageResult<GoodsWithSellerVO>> listAllPaged(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(required = false) Integer sellerId,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String keyword) {
+        
+        LambdaQueryWrapper<Goods> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Goods::getIsDelete, Constants.Status.NOT_DELETED);
+        
+        if (sellerId != null) {
+            wrapper.eq(Goods::getSellerId, sellerId);
+        }
+        
+        if (status != null) {
+            wrapper.eq(Goods::getStatus, status);
+        }
+        
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.and(w -> w.like(Goods::getGoodsName, keyword)
+                               .or()
+                               .like(Goods::getGoodsDesc, keyword));
+        }
+        
+        wrapper.orderByDesc(Goods::getCreateTime);
+        
+        // 先获取总数
+        Page<Goods> page = new Page<>(pageNum, pageSize);
+        IPage<Goods> pageResult = goodsService.page(page, wrapper);
+        
+        // 获取商家信息
+        List<Integer> sellerIds = pageResult.getRecords().stream()
+                .map(Goods::getSellerId)
+                .filter(id -> id != null)
+                .distinct()
+                .collect(Collectors.toList());
+        
+        Map<Integer, Seller> sellerMap = sellerIds.isEmpty() ? 
+                Map.of() : 
+                sellerService.listByIds(sellerIds).stream()
+                        .collect(Collectors.toMap(Seller::getId, s -> s));
+        
+        // 转换为 VO
+        List<GoodsWithSellerVO> voList = new ArrayList<>();
+        for (Goods goods : pageResult.getRecords()) {
+            GoodsWithSellerVO vo = new GoodsWithSellerVO();
+            BeanUtils.copyProperties(goods, vo);
+            
+            if (goods.getSellerId() != null && sellerMap.containsKey(goods.getSellerId())) {
+                Seller seller = sellerMap.get(goods.getSellerId());
+                vo.setSellerName(seller.getUsername());
+                vo.setShopName(seller.getShopName());
+            }
+            
+            voList.add(vo);
+        }
+        
+        PageResult<GoodsWithSellerVO> result = new PageResult<>(
+                pageResult.getTotal(),
+                pageNum,
+                pageSize,
+                voList
+        );
+        
+        return Result.success(result);
+    }
+
+    /**
+     * 分页获取商家自己的商品列表
+     * 需要商家登录
+     *
+     * @param pageNum 页码（默认1）
+     * @param pageSize 每页条数（默认10）
+     * @param keyword 关键词搜索（可选）
+     * @param session HTTP会话
+     * @return 分页后的商品列表
+     */
+    @GetMapping("/my/paged")
+    public Result<PageResult<Goods>> myGoodsPaged(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(required = false) String keyword,
+            HttpSession session) {
+        
+        Seller seller = (Seller) session.getAttribute("seller");
+        if (seller == null) {
+            return Result.error("请先登录商家账号");
+        }
+        
+        LambdaQueryWrapper<Goods> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Goods::getSellerId, seller.getId())
+               .eq(Goods::getIsDelete, Constants.Status.NOT_DELETED);
+        
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.and(w -> w.like(Goods::getGoodsName, keyword)
+                               .or()
+                               .like(Goods::getGoodsDesc, keyword));
+        }
+        
+        wrapper.orderByDesc(Goods::getCreateTime);
+        
+        Page<Goods> page = new Page<>(pageNum, pageSize);
+        IPage<Goods> pageResult = goodsService.page(page, wrapper);
+        
+        PageResult<Goods> result = new PageResult<>(
+                pageResult.getTotal(),
+                pageNum,
+                pageSize,
+                pageResult.getRecords()
+        );
+        
+        return Result.success(result);
     }
 }
