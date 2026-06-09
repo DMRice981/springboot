@@ -125,6 +125,8 @@ cxode/
 | 前端插件系统 | 添加进度条、认证、请求等插件 | ✅ 已完成 |
 | 路由进度条 | 添加页面切换进度条动画 | ✅ 已完成 |
 | 代码格式化 | 标准化代码风格 | ✅ 已完成 |
+| HTTP 参数自动过滤 | `http.get()` 自动忽略 `null` / `undefined` / `''` 参数，避免后端类型转换错误 | ✅ 已完成 |
+| Element Plus 图标规范 | 全项目统一 `import { Xxx as IconXxx }` 导入 + `<component :is="IconXxx" />` 使用；清理了不存在的图标（`Shield`、`Truck`）和 `:value="null"` 的错误用法 | ✅ 已完成 |
 
 ---
 
@@ -700,7 +702,11 @@ msg.success('操作成功')
 msg.error('操作失败')
 
 // HTTP 请求（统一使用 http 插件）🆕
+// 注意：GET 请求的参数中，值为 null / undefined / '' 的会被自动过滤，
+// 避免后端收到字符串 "null" 而产生类型转换错误
 const result = await http.get('/goods/list')
+// 带筛选参数的分页请求示例：
+const listData = await http.get('/goods/list/all/paged', { pageNum: 1, pageSize: 10, keyword: keyword.value, status: statusFilter.value !== '' ? statusFilter.value : undefined })
 const data = await http.post('/cart/add', { userId: 1, goodsId: 1, num: 1 })
 await http.put('/goods/update', formData)
 await http.delete('/goods/delete/1')
@@ -1090,6 +1096,15 @@ npm run build  # 打包构建
 - 原因：部分页面使用原生 fetch，部分使用 http 插件
 - 解决：已统一所有页面使用 http 插件
 
+#### 图标组件未导入 / 编译失败
+- 原因：模板中使用 `<Shield />` / `<Truck />` 等 `@element-plus/icons-vue` 包中不存在的图标，或直接使用与 HTML 同名的标签
+- 解决：统一使用 `import { Search as IconSearch, Plus as IconPlus } from '@element-plus/icons-vue'` 按需导入，并在模板中通过 `<el-icon><component :is="IconSearch" /></el-icon>` 的动态组件引用
+- 补充：`el-option` 的 "全部" 选项不要使用 `:value="null"`，应使用 `value=""`，`http.get()` 会自动过滤空值参数
+
+#### 列表接口 500 错误：Failed to convert value of type 'java.lang.String' to required type 'java.lang.Integer'
+- 原因：前端将 `null` 作为查询参数传到后端时被 URLSearchParams 序列化为字符串 `"null"`
+- 解决：`request.js` 的 `http.get()` 已自动过滤值为 `null` / `undefined` / `''` 的参数；在组装参数时对可选字段使用条件表达式，例如：`status: filterStatus.value !== '' ? filterStatus.value : undefined`
+
 ---
 
 ## 🎯 十一、开发最佳实践
@@ -1102,6 +1117,7 @@ npm run build  # 打包构建
 5. 代码提交前格式化
 6. 使用常量类管理状态码和错误码
 7. **统一使用 http 插件进行 API 调用** 🆕
+8. **从 @element-plus/icons-vue 按需导入图标组件**，并在模板中通过 `<component :is="IconXxx" />` 动态组件引用。不要使用包中不存在的图标名（如 `Shield`、`Truck`），应替换为存在的图标（如 `Medal`、`Van`）。若需用于 `el-option` 的 value，请避免使用 `:value="null"`，改为 `value=""` 并在参数组装时过滤空值。
 
 ### 11.2 安全实践
 1. 敏感信息存储在 `.env` 文件

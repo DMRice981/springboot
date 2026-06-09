@@ -375,7 +375,8 @@ npm run preview
 - **认证管理**：统一使用 `auth` 插件，禁止直接操作 `localStorage`
 - **组件开发**：使用 `<script setup>` 语法，Composition API 风格
 - **样式隔离**：使用 `<style scoped>` 确保样式不泄露
-- **图标导入**：从 `@element-plus/icons-vue` 按需导入图标组件
+- **图标导入**：从 `@element-plus/icons-vue` 按需导入图标组件，模板中通过动态组件 `<component :is="IconXxx" />` 引用；不要使用包中不存在的图标（如 `Shield`、`Truck`），可替换为 `Medal`、`Van` 等存在的图标；`el-option` 的 "全部" 选项使用 `value=""` 而非 `:value="null"`
+- **HTTP 参数过滤**：`http.get()` 会自动忽略值为 `null`、`undefined` 或 `''` 的查询参数，避免后端将字符串 `"null"` 当作 Integer 解析导致类型转换错误
 
 ### Git 提交规范
 
