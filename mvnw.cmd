@@ -8,9 +8,9 @@ set WRAPPER_URL="https://repo.maven.apache.org/maven2/org/apache/maven/wrapper/m
 if exist %WRAPPER_JAR% goto wrapper
 powershell -Command "(New-Object Net.WebClient).DownloadFile('%WRAPPER_URL%', '%WRAPPER_JAR%')"
 :wrapper
-java %JAVA_OPTS% -classpath %WRAPPER_JAR% org.apache.maven.wrapper.MavenWrapperMain %*
+java %JAVA_OPTS% -Dmaven.multiModuleProjectDirectory=%~dp0 -classpath %WRAPPER_JAR% org.apache.maven.wrapper.MavenWrapperMain %*
 goto end
 :properties
-java %JAVA_OPTS% -classpath "%~dp0.mvn\wrapper\maven-wrapper.jar" org.apache.maven.wrapper.MavenWrapperMain %*
+java %JAVA_OPTS% -Dmaven.multiModuleProjectDirectory=%~dp0 -classpath "%~dp0.mvn\wrapper\maven-wrapper.jar" org.apache.maven.wrapper.MavenWrapperMain %*
 :end
 @endlocal

@@ -194,6 +194,12 @@ public class GoodsController {
     @PostMapping("/add")
     public Result<Goods> add(@RequestBody Goods goodsFromFront, HttpSession session) {
         Seller seller = (Seller) session.getAttribute("seller");
+        Object admin = session.getAttribute("admin");
+        
+        if (seller == null && admin == null) {
+            return Result.error("请先登录");
+        }
+        
         Goods goods = new Goods();
         goods.setCategoryId(goodsFromFront.getCategoryId());
         goods.setGoodsName(goodsFromFront.getGoodsName());
@@ -241,9 +247,13 @@ public class GoodsController {
         }
         
         Seller seller = (Seller) session.getAttribute("seller");
-        // 如果是商家登录，检查是否有权限
+        Object admin = session.getAttribute("admin");
+        
         if (seller != null && !goods.getSellerId().equals(seller.getId())) {
             return Result.error("您无权操作该商品");
+        }
+        if (seller == null && admin == null) {
+            return Result.error("请先登录");
         }
         
         goods.setCategoryId(goodsFromFront.getCategoryId());
@@ -282,21 +292,23 @@ public class GoodsController {
         if (status == null || (status != Constants.GoodsStatus.ON_SHELF && status != Constants.GoodsStatus.OFF_SHELF)) {
             return Result.error("状态值无效");
         }
-        
-        Seller seller = (Seller) session.getAttribute("seller");
-        if (seller == null) {
-            return Result.error("请先登录商家账号");
-        }
-        
+
         Goods goods = goodsService.getById(id);
         if (goods == null) {
             return Result.error("商品不存在");
         }
-        
-        if (!goods.getSellerId().equals(seller.getId())) {
+
+        Seller seller = (Seller) session.getAttribute("seller");
+        Object admin = session.getAttribute("admin");
+
+        // 商家只能操作自己的商品，管理员可以操作任意商品
+        if (seller != null && !goods.getSellerId().equals(seller.getId())) {
             return Result.error("您无权操作该商品");
         }
-        
+        if (seller == null && admin == null) {
+            return Result.error("请先登录");
+        }
+
         goodsService.lambdaUpdate()
                 .eq(Goods::getId, id)
                 .set(Goods::getStatus, status)
@@ -321,9 +333,13 @@ public class GoodsController {
         }
         
         Seller seller = (Seller) session.getAttribute("seller");
-        // 如果是商家登录，检查是否有权限
+        Object admin = session.getAttribute("admin");
+        
         if (seller != null && !goods.getSellerId().equals(seller.getId())) {
             return Result.error("您无权操作该商品");
+        }
+        if (seller == null && admin == null) {
+            return Result.error("请先登录");
         }
         
         goodsService.lambdaUpdate()

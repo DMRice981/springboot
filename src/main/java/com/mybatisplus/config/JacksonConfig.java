@@ -2,13 +2,13 @@ package com.mybatisplus.config;
 
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.module.SimpleModule;
 import tools.jackson.databind.ext.javatime.deser.LocalDateDeserializer;
 import tools.jackson.databind.ext.javatime.deser.LocalDateTimeDeserializer;
 import tools.jackson.databind.ext.javatime.deser.LocalTimeDeserializer;
 import tools.jackson.databind.ext.javatime.ser.LocalDateSerializer;
 import tools.jackson.databind.ext.javatime.ser.LocalDateTimeSerializer;
 import tools.jackson.databind.ext.javatime.ser.LocalTimeSerializer;
-import tools.jackson.databind.module.SimpleModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -19,7 +19,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
 /**
- * Jackson 配置类，统一时间格式（Jackson 3.x, tools.jackson 包名）
+ * Jackson 配置类，统一时间格式
  */
 @Configuration
 public class JacksonConfig {
