@@ -39,12 +39,27 @@ public class BannerController {
 
     @PostMapping("/add")
     public Result<Banner> add(@RequestBody Banner banner) {
+        if (banner.getLinkUrl() == null) {
+            banner.setLinkUrl("");
+        }
+        if (banner.getStatus() == null) {
+            banner.setStatus(1);
+        }
+        if (banner.getSort() == null) {
+            banner.setSort(0);
+        }
         bannerService.save(banner);
         return Result.success("添加成功", banner);
     }
 
     @PutMapping("/update")
     public Result<Banner> update(@RequestBody Banner banner) {
+        if (banner.getLinkUrl() == null) {
+            banner.setLinkUrl("");
+        }
+        if (banner.getStatus() == null) {
+            banner.setStatus(1);
+        }
         bannerService.updateById(banner);
         return Result.success("更新成功", banner);
     }
