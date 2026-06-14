@@ -1,6 +1,6 @@
 package com.mybatisplus.interceptor;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.mybatisplus.common.Result;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
