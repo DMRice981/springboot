@@ -12,6 +12,8 @@ import com.mybatisplus.entity.Goods;
 import com.mybatisplus.entity.Seller;
 import com.mybatisplus.service.GoodsService;
 import com.mybatisplus.service.SellerService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
@@ -55,6 +57,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/goods")
 @RequiredArgsConstructor
+@Tag(name = "商品模块", description = "商品浏览、详情、管理")
 public class GoodsController {
 
     private final GoodsService goodsService;
@@ -159,6 +162,14 @@ public class GoodsController {
             return Result.error("商品不存在");
         }
         return Result.success(goods);
+    }
+
+    /**
+     * 商品详情（前端路由路径别名）
+     */
+    @GetMapping("/{id}")
+    public Result<Goods> getById(@PathVariable Integer id) {
+        return get(id);
     }
 
     /**

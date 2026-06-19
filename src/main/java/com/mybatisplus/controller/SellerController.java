@@ -7,6 +7,7 @@ import com.mybatisplus.common.Result;
 import com.mybatisplus.dto.PageResult;
 import com.mybatisplus.entity.Seller;
 import com.mybatisplus.service.SellerService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,11 +18,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/seller")
 @RequiredArgsConstructor
+@Tag(name = "商家模块", description = "商家注册、登录、店铺管理")
 public class SellerController {
 
     private final SellerService sellerService;
 
     @PostMapping("/register")
+    @Tag(name = "商家注册", description = "商家注册接口")
     public Result<Seller> register(@RequestBody Seller seller) {
         if (seller.getUsername() == null || seller.getUsername().isEmpty()) {
             return Result.error("用户名不能为空");

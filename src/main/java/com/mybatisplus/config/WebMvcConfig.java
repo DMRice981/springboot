@@ -38,6 +38,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                     "/goods/list",
                     "/goods/list/paged",
                     "/goods/get/**",
+                    "/goods/*",
                     "/goods/search",
 
                     // ===== 分类（公开）=====
@@ -60,6 +61,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                     "/comment/list",
                     "/comment/list/**",
                     "/comment/get/**",
+                    "/comment/add",
 
                     // ===== 聊天功能（公开，连接后通过参数验证身份）=====
                     "/chat/**"

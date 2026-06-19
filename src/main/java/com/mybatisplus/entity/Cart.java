@@ -28,4 +28,20 @@ public class Cart {
     @TableField(fill = FieldFill.INSERT_UPDATE)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime updateTime;
+
+    // ============= 非持久化字段：用于返回商品信息给前端 =============
+    @TableField(exist = false)
+    private String goodsName;
+
+    @TableField(exist = false)
+    private String goodsImg;
+
+    @TableField(exist = false)
+    private java.math.BigDecimal price;
+
+    @TableField(exist = false)
+    private Integer stock;
+
+    @TableField(exist = false)
+    private Integer status;
 }

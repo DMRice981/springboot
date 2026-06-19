@@ -10,9 +10,11 @@ import com.mybatisplus.dto.PageResult;
 import com.mybatisplus.entity.Goods;
 import com.mybatisplus.entity.Order;
 import com.mybatisplus.entity.OrderItem;
+import com.mybatisplus.service.CartService;
 import com.mybatisplus.service.GoodsService;
 import com.mybatisplus.service.OrderItemService;
 import com.mybatisplus.service.OrderService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
@@ -36,11 +39,13 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/order")
 @RequiredArgsConstructor
+@Tag(name = "订单模块", description = "订单管理")
 public class OrderController {
 
     private final OrderService orderService;
     private final OrderItemService orderItemService;
     private final GoodsService goodsService;
+    private final CartService cartService;
 
     /**
      * 获取用户订单列表
@@ -297,6 +302,118 @@ public class OrderController {
             orderItemService.save(orderItem);
         }
 
+        // 清除用户购物车中已下单的商品
+        Set<Integer> goodsIdSet = dto.getGoodsList().stream()
+                .map(OrderDTO.GoodsItem::getGoodsId)
+                .collect(Collectors.toSet());
+        cartService.lambdaQuery()
+                .eq(com.mybatisplus.entity.Cart::getUserId, dto.getUserId())
+                .in(com.mybatisplus.entity.Cart::getGoodsId, goodsIdSet)
+                .list()
+                .forEach(cartItem -> cartService.removeById(cartItem.getId()));
+
+        return Result.success("创建成功", order);
+    }
+
+    /**
+     * 提交订单（兼容前端 items/goodsId/num 格式）
+     * 事务操作：创建订单 → 创建订单项 → 扣减库存
+     *
+     * @param dto 订单信息 { userId, addressId, items: [{goodsId, num, price}] }
+     * @return 创建结果
+     */
+    @PostMapping("/add")
+    @Transactional(rollbackFor = Exception.class)
+    public Result<Order> add(@RequestBody java.util.Map<String, Object> dto) {
+        Integer userId = dto.get("userId") != null ? ((Number) dto.get("userId")).intValue() : null;
+        Integer addressId = dto.get("addressId") != null ? ((Number) dto.get("addressId")).intValue() : null;
+
+        if (userId == null) {
+            return Result.error("用户ID不能为空");
+        }
+        if (addressId == null) {
+            return Result.error("收货地址不能为空");
+        }
+
+        @SuppressWarnings("unchecked")
+        java.util.List<java.util.Map<String, Object>> items =
+                (java.util.List<java.util.Map<String, Object>>) dto.get("items");
+
+        if (items == null || items.isEmpty()) {
+            return Result.error("订单商品不能为空");
+        }
+
+        String orderNo = generateOrderNo();
+        BigDecimal totalPrice = BigDecimal.ZERO;
+        List<Goods> goodsList = new ArrayList<>();
+
+        // 第一步：验证商品并计算总价
+        for (java.util.Map<String, Object> item : items) {
+            Integer goodsId = ((Number) item.get("goodsId")).intValue();
+            Integer num = item.get("num") != null ? ((Number) item.get("num")).intValue() : 1;
+
+            Goods goods = goodsService.getById(goodsId);
+            if (goods == null) {
+                return Result.error("商品不存在");
+            }
+            if (goods.getStock() == null || goods.getStock() < num) {
+                return Result.error("商品库存不足: " + goods.getGoodsName());
+            }
+            if (goods.getPrice() == null) {
+                return Result.error("商品价格异常: " + goods.getGoodsName());
+            }
+
+            goodsList.add(goods);
+            totalPrice = totalPrice.add(goods.getPrice().multiply(BigDecimal.valueOf(num)));
+        }
+
+        // 第二步：创建订单
+        Order order = new Order();
+        order.setOrderNo(orderNo);
+        order.setUserId(userId);
+        order.setAddressId(addressId);
+        order.setTotalPrice(totalPrice);
+        order.setPayPrice(totalPrice);
+        order.setPayStatus(0);
+        order.setOrderStatus(Constants.OrderStatus.PENDING);
+        order.setCreateTime(LocalDateTime.now());
+        orderService.save(order);
+
+        // 第三步：扣减库存并创建订单项
+        for (int i = 0; i < items.size(); i++) {
+            java.util.Map<String, Object> item = items.get(i);
+            Goods goods = goodsList.get(i);
+            Integer num = item.get("num") != null ? ((Number) item.get("num")).intValue() : 1;
+
+            // 扣减库存
+            goodsService.lambdaUpdate()
+                    .eq(Goods::getId, goods.getId())
+                    .set(Goods::getStock, goods.getStock() - num)
+                    .set(Goods::getSales, goods.getSales() == null ? num : goods.getSales() + num)
+                    .update();
+
+            // 创建订单项
+            OrderItem orderItem = new OrderItem();
+            orderItem.setOrderNo(orderNo);
+            orderItem.setGoodsId(goods.getId());
+            orderItem.setGoodsName(goods.getGoodsName());
+            orderItem.setGoodsImg(goods.getGoodsImg());
+            orderItem.setPrice(goods.getPrice());
+            orderItem.setNum(num);
+            orderItem.setCreateTime(LocalDateTime.now());
+            orderItemService.save(orderItem);
+        }
+
+        // 清除用户购物车中已下单的商品
+        Set<Integer> addGoodsIdSet = items.stream()
+                .map(item -> ((Number) item.get("goodsId")).intValue())
+                .collect(Collectors.toSet());
+        cartService.lambdaQuery()
+                .eq(com.mybatisplus.entity.Cart::getUserId, userId)
+                .in(com.mybatisplus.entity.Cart::getGoodsId, addGoodsIdSet)
+                .list()
+                .forEach(cartItem -> cartService.removeById(cartItem.getId()));
+
         return Result.success("创建成功", order);
     }
 
@@ -308,6 +425,7 @@ public class OrderController {
      * @return 支付结果
      */
     @PostMapping("/pay/{id}")
+    @Transactional(rollbackFor = Exception.class)
     public Result<Void> pay(@PathVariable Integer id) {
         Order order = orderService.getById(id);
         if (order == null) {
@@ -335,6 +453,7 @@ public class OrderController {
      * @return 发货结果
      */
     @PostMapping("/send/{id}")
+    @Transactional(rollbackFor = Exception.class)
     public Result<Void> send(@PathVariable Integer id) {
         Order order = orderService.getById(id);
         if (order == null) {
@@ -361,6 +480,7 @@ public class OrderController {
      * @return 确认结果
      */
     @PostMapping("/confirm/{id}")
+    @Transactional(rollbackFor = Exception.class)
     public Result<Void> confirm(@PathVariable Integer id) {
         Order order = orderService.getById(id);
         if (order == null) {
@@ -447,15 +567,18 @@ public class OrderController {
         return Result.successMsg("删除成功");
     }
 
+    private static final AtomicLong orderCounter = new AtomicLong(0);
+
     /**
      * 生成订单号
-     * 格式: 时间戳(14位) + 随机数(6位)
+     * 格式: 时间戳(14位) + 6位自增数（带随机偏移）
      *
      * @return 订单号
      */
     private String generateOrderNo() {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        String random = String.format("%06d", new Random().nextInt(1000000));
+        long seq = orderCounter.incrementAndGet() % 1000000;
+        String random = String.format("%06d", seq);
         return timestamp + random;
     }
 }

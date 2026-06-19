@@ -8,6 +8,8 @@ import com.mybatisplus.common.Result;
 import com.mybatisplus.dto.PageResult;
 import com.mybatisplus.entity.User;
 import com.mybatisplus.service.UserService;
+import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,11 +20,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/user")
 @RequiredArgsConstructor
+@Tag(name = "用户模块", description = "用户登录、注册、个人信息管理")
 public class UserController {
 
     private final UserService userService;
 
     @PostMapping("/login")
+    @Tag(name = "用户登录", description = "用户登录接口")
     public Result<User> login(@RequestBody User loginUser, HttpSession session) {
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(User::getUsername, loginUser.getUsername())

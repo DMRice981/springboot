@@ -28,4 +28,7 @@ public class GoodsComment {
     @TableField(fill = FieldFill.INSERT)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;
+    
+    @TableField(exist = false)
+    private String userName;
 }

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.mybatisplus.common.Result;
 import com.mybatisplus.entity.Admin;
 import com.mybatisplus.service.AdminService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,11 +14,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin")
 @RequiredArgsConstructor
+@Tag(name = "管理员模块", description = "管理员登录、账号管理")
 public class AdminController {
 
     private final AdminService adminService;
 
     @PostMapping("/login")
+    @Tag(name = "管理员登录", description = "管理员登录接口")
     public Result<Admin> login(@RequestBody Admin loginAdmin, HttpSession session) {
         LambdaQueryWrapper<Admin> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Admin::getAdminName, loginAdmin.getAdminName())
